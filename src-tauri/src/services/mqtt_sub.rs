@@ -111,9 +111,8 @@ fn get_mqtt_config(app: &AppHandle) -> Option<MqttConfig> {
     });
 
     let custom_client_id = db_state.settings_repo.get("mqtt_client_id").ok().flatten().filter(|s| !s.is_empty());
-    let client_id = custom_client_id.unwrap_or_else(|| {
-        topic.split('/').nth(1).unwrap_or(&format!("tiez_{}", short_id)).to_string()
-    });
+    let default_client_id = format!("tiez_pc_{}", short_id);
+    let client_id = custom_client_id.unwrap_or(default_client_id);
 
     let username = db_state.settings_repo.get("mqtt_username").ok().flatten()
         .filter(|s| !s.is_empty())
