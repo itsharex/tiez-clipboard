@@ -5,7 +5,18 @@ use crate::infrastructure::repository::clipboard_repo::ClipboardRepository;
 use crate::infrastructure::repository::tag_repo::TagRepository;
 use crate::domain::models::ClipboardEntry;
 use crate::error::{AppResult, AppError};
-use crate::services::clipboard::{build_entry_preview, truncate_html_for_preview};
+use crate::services::clipboard::{build_entry_preview, derive_rich_text_content, truncate_html_for_preview};
+
+fn normalize_rich_text_item_content(item: &mut ClipboardEntry) {
+    if item.content_type != "rich_text" {
+        return;
+    }
+
+    let normalized = derive_rich_text_content(&item.content, item.html_content.as_deref());
+    if !normalized.trim().is_empty() {
+        item.content = normalized;
+    }
+}
 
 #[tauri::command]
 pub fn get_clipboard_history(
@@ -52,6 +63,8 @@ pub fn get_clipboard_history(
     
     // 5. Truncate content for UI performance
     for item in &mut history {
+        normalize_rich_text_item_content(item);
+
         if (item.content_type == "text" || item.content_type == "code" || item.content_type == "url" || item.content_type == "rich_text") 
            && item.content.chars().count() > 2000 
         {
@@ -101,6 +114,8 @@ pub fn search_clipboard_history(
     }
 
     for item in &mut history {
+        normalize_rich_text_item_content(item);
+
         if (item.content_type == "text" || item.content_type == "code" || item.content_type == "url" || item.content_type == "rich_text") 
            && item.content.chars().count() > 2000 
         {
@@ -159,7 +174,9 @@ pub fn get_tag_items(state: State<'_, DbState>, tag: String) -> AppResult<Vec<Cl
     let mut history = state.tag_repo.get_entries_by_tag(&tag).map_err(AppError::from)?;
     
     for item in &mut history {
-          if (item.content_type == "text" || item.content_type == "code" || item.content_type == "url" || item.content_type == "rich_text") 
+        normalize_rich_text_item_content(item);
+
+        if (item.content_type == "text" || item.content_type == "code" || item.content_type == "url" || item.content_type == "rich_text") 
            && item.content.chars().count() > 50000 
         {
             item.content = format!("{}... [Content Truncated]", item.content.chars().take(50000).collect::<String>());
@@ -226,12 +243,29 @@ pub fn get_clipboard_content(
     {
         let session_items = session.inner().0.lock().unwrap();
         if let Some(item) = session_items.iter().find(|i| i.id == id) {
+            if item.content_type == "rich_text" {
+                let normalized = derive_rich_text_content(&item.content, item.html_content.as_deref());
+                if !normalized.trim().is_empty() {
+                    return Ok(normalized);
+                }
+            }
             return Ok(item.content.clone());
         }
     }
 
-    state.repo.get_entry_content(id).map_err(AppError::from)?
-        .ok_or_else(|| AppError::Validation("Entry not found".to_string()))
+    if let Some((content, content_type, html_content)) =
+        state.repo.get_entry_content_with_html(id).map_err(AppError::from)?
+    {
+        if content_type == "rich_text" {
+            let normalized = derive_rich_text_content(&content, html_content.as_deref());
+            if !normalized.trim().is_empty() {
+                return Ok(normalized);
+            }
+        }
+        return Ok(content);
+    }
+
+    Err(AppError::Validation("Entry not found".to_string()))
 }
 
 #[tauri::command]

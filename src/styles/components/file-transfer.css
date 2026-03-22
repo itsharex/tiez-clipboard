@@ -803,3 +803,13 @@
 .wt-fullscreen-editor{
   box-shadow: var(--wt-fullscreen-shadow);
 }
+
+body.theme-acrylic .wt-chat-view,
+body.theme-mica .wt-chat-view{
+  background-color: transparent;
+}
+
+body.theme-acrylic .wt-chat-box,
+body.theme-mica .wt-chat-box{
+  background-color: transparent;
+}

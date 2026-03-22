@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toTauriLocalImageSrc } from "../lib/localImageSrc";
-import { isHtmlishTagText, repairHtmlFragment } from "../lib/repairHtmlFragment";
+import {
+  isHtmlishTagText,
+  isOfficeStyleDefinitionText,
+  stripOfficePreviewNoise
+} from "../lib/repairHtmlFragment";
 
 const pickFirstSrcFromSrcset = (srcset?: string | null): string | null => {
   if (!srcset) return null;
@@ -44,8 +48,8 @@ const resolveImgSource = (el: Element): string | null => {
 const sanitizeHTML = (html: string, preview?: boolean) => {
   const parser = new DOMParser();
 
-  const stripLeadingHtmlishTextNode = (container: HTMLElement) => {
-    if (!container.querySelector("table")) return;
+  const stripLeadingPreviewNoise = (container: HTMLElement) => {
+    if (!container.querySelector("table, p, div, img, ul, ol, blockquote, pre")) return;
 
     for (const node of Array.from(container.childNodes)) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -54,14 +58,23 @@ const sanitizeHTML = (html: string, preview?: boolean) => {
           container.removeChild(node);
           continue;
         }
-        if (isHtmlishTagText(text)) {
+        if (isHtmlishTagText(text) || isOfficeStyleDefinitionText(text)) {
           container.removeChild(node);
           continue;
         }
       }
 
-      if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "style") {
-        continue;
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+        const tagName = element.tagName.toLowerCase();
+        if (tagName === "style" && isOfficeStyleDefinitionText(element.textContent || "")) {
+          container.removeChild(node);
+          continue;
+        }
+        if (tagName === "meta" || tagName === "link" || tagName === "xml") {
+          container.removeChild(node);
+          continue;
+        }
       }
 
       break;
@@ -69,7 +82,7 @@ const sanitizeHTML = (html: string, preview?: boolean) => {
   };
 
   // Heuristic: If it contains table elements but no <table> tag, wrap it.
-  let processedHtml = repairHtmlFragment(html);
+  let processedHtml = stripOfficePreviewNoise(html);
   if ((processedHtml.includes("<tr") || processedHtml.includes("<td") || processedHtml.includes("<col"))
     && !processedHtml.toLowerCase().includes("<table")) {
     processedHtml = `<table style="border-collapse: collapse; min-width: 100%;">${processedHtml}</table>`;
@@ -79,6 +92,12 @@ const sanitizeHTML = (html: string, preview?: boolean) => {
 
   // Only remove scripts, keep styles for formatting (e.g. Excel)
   doc.querySelectorAll("script").forEach(el => el.remove());
+  doc.querySelectorAll("style").forEach((style) => {
+    if (isOfficeStyleDefinitionText(style.textContent || "")) {
+      style.remove();
+    }
+  });
+  doc.querySelectorAll("meta, link, xml").forEach((el) => el.remove());
 
   // Truncate tables for preview to save performance
   if (preview) {
@@ -107,7 +126,7 @@ const sanitizeHTML = (html: string, preview?: boolean) => {
   doc.head.querySelectorAll("style").forEach(style => {
     doc.body.prepend(style);
   });
-  stripLeadingHtmlishTextNode(doc.body);
+  stripLeadingPreviewNoise(doc.body);
 
   const all = doc.querySelectorAll("*");
   all.forEach(el => {

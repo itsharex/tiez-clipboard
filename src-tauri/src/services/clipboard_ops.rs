@@ -119,6 +119,13 @@ pub async fn copy_to_clipboard(
         }
     }
 
+    if content_type == "rich_text" {
+        let normalized = crate::services::clipboard::derive_rich_text_content(&content, html_content.as_deref());
+        if !normalized.trim().is_empty() {
+            content = normalized;
+        }
+    }
+
     // 1. Handle Window Visibility and Focus
     if paste {
         handle_window_focus_for_paste(&app_handle).await?;

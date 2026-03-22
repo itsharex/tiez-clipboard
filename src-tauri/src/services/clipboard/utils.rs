@@ -187,6 +187,44 @@ fn collapse_preview_whitespace(text: &str) -> String {
         .to_string()
 }
 
+fn collapse_line_whitespace(text: &str) -> String {
+    static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
+
+    WHITESPACE_RE
+        .get_or_init(|| Regex::new(r"[^\S\r\n]+").unwrap())
+        .replace_all(text.trim(), " ")
+        .trim()
+        .to_string()
+}
+
+fn normalize_plain_text_layout(text: &str) -> String {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = Vec::new();
+
+    for raw_line in normalized.lines() {
+        let line = collapse_line_whitespace(raw_line);
+        if line.is_empty() {
+            if !lines.last().map(|last: &String| last.is_empty()).unwrap_or(false) {
+                lines.push(String::new());
+            }
+        } else {
+            lines.push(line);
+        }
+    }
+
+    let start = lines
+        .iter()
+        .position(|line| !line.is_empty())
+        .unwrap_or(lines.len());
+    let end = lines
+        .iter()
+        .rposition(|line| !line.is_empty())
+        .map(|idx| idx + 1)
+        .unwrap_or(start);
+
+    lines[start..end].join("\n")
+}
+
 fn decode_basic_html_entities(text: &str) -> String {
     text.replace("&nbsp;", " ")
         .replace("&#160;", " ")
@@ -197,6 +235,85 @@ fn decode_basic_html_entities(text: &str) -> String {
         .replace("&#34;", "\"")
         .replace("&#39;", "'")
         .replace("&apos;", "'")
+}
+
+fn is_office_style_definition_text(text: &str) -> bool {
+    static OFFICE_STYLE_SIGNAL_RE: OnceLock<Regex> = OnceLock::new();
+
+    let normalized = collapse_preview_whitespace(text);
+    normalized.len() > 24
+        && OFFICE_STYLE_SIGNAL_RE
+            .get_or_init(|| {
+                Regex::new(
+                    r"(?is)(/\*\s*style definitions\s*\*/|mso-style-name|mso-style-noshow|mso-style-priority|mso-padding-alt|mso-para-margin|table\.mso|mso-|microsoftinternetexplorer\d*|documentnotspecified|wps office|office word|msonormal|mso normal|normal\s+\d+\s+false)"
+                )
+                .unwrap()
+            })
+            .is_match(&normalized)
+}
+
+fn strip_leading_office_metadata_text(text: &str) -> String {
+    static OFFICE_METADATA_PREFIX_RE: OnceLock<Regex> = OnceLock::new();
+
+    let normalized = normalize_plain_text_layout(text);
+    if normalized.is_empty() {
+        return normalized;
+    }
+
+    let lower = normalized.to_ascii_lowercase();
+    if !(lower.contains("microsoftinternetexplorer") || lower.contains("documentnotspecified")) {
+        return normalized;
+    }
+
+    let stripped = OFFICE_METADATA_PREFIX_RE
+        .get_or_init(|| {
+            Regex::new(
+                r"(?is)^\s*(?:(?:\d+|false|true|[a-z]{2}(?:-[a-z]{2})?|x-none|normal|documentnotspecified|microsoftinternetexplorer\d*|[\d.]+(?:pt|px|磅))\s+)+"
+            )
+            .unwrap()
+        })
+        .replace(&normalized, "")
+        .trim()
+        .to_string();
+
+    if stripped.is_empty() {
+        normalized
+    } else {
+        stripped
+    }
+}
+
+fn extract_renderable_html_region(html: &str) -> String {
+    static BODY_RE: OnceLock<Regex> = OnceLock::new();
+    static HEAD_RE: OnceLock<Regex> = OnceLock::new();
+
+    let repaired = repair_html_fragment(html);
+    let trimmed = repaired.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    if let Some(start_idx) = trimmed.find("<!--StartFragment-->") {
+        let start = start_idx + "<!--StartFragment-->".len();
+        if let Some(end_rel) = trimmed[start..].find("<!--EndFragment-->") {
+            return trimmed[start..start + end_rel].trim().to_string();
+        }
+    }
+
+    if let Some(captures) = BODY_RE
+        .get_or_init(|| Regex::new(r"(?is)<body\b[^>]*>([\s\S]*?)</body\s*>").unwrap())
+        .captures(trimmed)
+    {
+        if let Some(body) = captures.get(1) {
+            return body.as_str().trim().to_string();
+        }
+    }
+
+    HEAD_RE
+        .get_or_init(|| Regex::new(r"(?is)<head\b[\s\S]*?</head\s*>").unwrap())
+        .replace_all(trimmed, " ")
+        .trim()
+        .to_string()
 }
 
 pub fn repair_html_fragment(html: &str) -> String {
@@ -223,8 +340,68 @@ pub fn repair_html_fragment(html: &str) -> String {
     }
 }
 
+fn strip_office_preview_noise(text: &str) -> String {
+    static OFFICE_STYLE_BLOCK_RE: OnceLock<Regex> = OnceLock::new();
+    static OFFICE_XML_BLOCK_RE: OnceLock<Regex> = OnceLock::new();
+    static CONDITIONAL_COMMENT_RE: OnceLock<Regex> = OnceLock::new();
+    static RENDERABLE_CONTENT_TAG_RE: OnceLock<Regex> = OnceLock::new();
+
+    let mut processed = extract_renderable_html_region(text);
+    if processed.trim().is_empty() {
+        return processed.trim().to_string();
+    }
+
+    processed = OFFICE_XML_BLOCK_RE
+        .get_or_init(|| Regex::new(r"(?is)<xml\b[\s\S]*?</xml>").unwrap())
+        .replace_all(&processed, |caps: &regex::Captures| {
+            let block = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
+            if is_office_style_definition_text(block) {
+                " ".to_string()
+            } else {
+                block.to_string()
+            }
+        })
+        .into_owned();
+
+    processed = OFFICE_STYLE_BLOCK_RE
+        .get_or_init(|| Regex::new(r"(?is)<style\b[\s\S]*?</style>").unwrap())
+        .replace_all(&processed, |caps: &regex::Captures| {
+            let block = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
+            if is_office_style_definition_text(block) {
+                " ".to_string()
+            } else {
+                block.to_string()
+            }
+        })
+        .into_owned();
+
+    processed = CONDITIONAL_COMMENT_RE
+        .get_or_init(|| Regex::new(r"(?is)<!--[\s\S]*?-->").unwrap())
+        .replace_all(&processed, |caps: &regex::Captures| {
+            let block = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
+            if is_office_style_definition_text(block) {
+                " ".to_string()
+            } else {
+                block.to_string()
+            }
+        })
+        .into_owned();
+
+    if let Some(renderable_match) = RENDERABLE_CONTENT_TAG_RE
+        .get_or_init(|| Regex::new(r"(?is)<(table|p|div|span|img|a|ul|ol|li|blockquote|pre|h[1-6])\b").unwrap())
+        .find(&processed)
+    {
+        let prefix = &processed[..renderable_match.start()];
+        if is_office_style_definition_text(prefix) {
+            processed = processed[renderable_match.start()..].to_string();
+        }
+    }
+
+    processed.trim().to_string()
+}
+
 fn looks_like_html_fragment(text: &str) -> bool {
-    let repaired = repair_html_fragment(text);
+    let repaired = strip_office_preview_noise(text);
     let trimmed = repaired.trim_start_matches('\u{feff}').trim_start();
     if trimmed.starts_with('<') {
         return true;
@@ -252,21 +429,65 @@ fn looks_like_html_fragment(text: &str) -> bool {
         || (lower.contains("cellpadding=") && lower.contains("cellspacing="))
 }
 
-fn extract_preview_text_from_htmlish(text: &str) -> String {
+fn sanitize_rich_text_plain_text(text: &str) -> String {
+    let normalized = normalize_plain_text_layout(text);
+    if normalized.is_empty() {
+        return normalized;
+    }
+
+    let stripped = strip_leading_office_metadata_text(&normalized);
+    if is_office_style_definition_text(&collapse_preview_whitespace(&stripped)) {
+        String::new()
+    } else {
+        stripped
+    }
+}
+
+fn extract_plain_text_from_htmlish(text: &str) -> String {
     static BREAK_TAG_RE: OnceLock<Regex> = OnceLock::new();
     static TAG_RE: OnceLock<Regex> = OnceLock::new();
 
-    let repaired = repair_html_fragment(text);
+    let repaired = strip_office_preview_noise(text);
+    if repaired.is_empty() {
+        return String::new();
+    }
     let with_breaks = BREAK_TAG_RE
         .get_or_init(|| {
             Regex::new(r"(?is)</?(?:br|p|div|li|tr|td|th|table|h[1-6]|section|article|ul|ol)\b[^>]*>")
                 .unwrap()
         })
-        .replace_all(&repaired, " ");
+        .replace_all(&repaired, "\n");
     let without_tags = TAG_RE
         .get_or_init(|| Regex::new(r"(?is)<[^>]+>").unwrap())
         .replace_all(with_breaks.as_ref(), " ");
-    collapse_preview_whitespace(&decode_basic_html_entities(without_tags.as_ref()))
+    let collapsed = normalize_plain_text_layout(&decode_basic_html_entities(without_tags.as_ref()));
+    let cleaned = strip_leading_office_metadata_text(&collapsed);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    if is_office_style_definition_text(&collapse_preview_whitespace(&cleaned)) {
+        String::new()
+    } else {
+        cleaned
+    }
+}
+
+pub fn derive_rich_text_content(content: &str, html_content: Option<&str>) -> String {
+    let html_text = html_content
+        .map(extract_plain_text_from_htmlish)
+        .filter(|text| !text.is_empty());
+    if let Some(text) = html_text {
+        return text;
+    }
+
+    if looks_like_html_fragment(content) {
+        let content_text = extract_plain_text_from_htmlish(content);
+        if !content_text.is_empty() {
+            return content_text;
+        }
+    }
+
+    sanitize_rich_text_plain_text(content)
 }
 
 pub fn build_entry_preview(content_type: &str, content: &str, html_content: Option<&str>) -> String {
@@ -275,23 +496,19 @@ pub fn build_entry_preview(content_type: &str, content: &str, html_content: Opti
     }
 
     let preview_text = if content_type == "rich_text" {
-        let html_preview = html_content
-            .map(extract_preview_text_from_htmlish)
-            .filter(|text| !text.is_empty());
+        let clean_text = derive_rich_text_content(content, html_content);
+        let preview = collapse_preview_whitespace(&clean_text);
+        let normalized_content = collapse_preview_whitespace(content);
 
-        match html_preview {
-            Some(text) => text,
-            None => {
-                let content_preview = extract_preview_text_from_htmlish(content);
-                let normalized_content = collapse_preview_whitespace(content);
-                if content_preview.is_empty()
-                    || (looks_like_html_fragment(content) && content_preview == normalized_content)
-                {
-                    RICH_TEXT_PREVIEW_FALLBACK.to_string()
-                } else {
-                    content_preview
-                }
-            }
+        if clean_text.is_empty()
+            || preview.is_empty()
+            || (html_content.is_none()
+                && looks_like_html_fragment(content)
+                && preview == normalized_content)
+        {
+            RICH_TEXT_PREVIEW_FALLBACK.to_string()
+        } else {
+            preview
         }
     } else {
         collapse_preview_whitespace(content)
@@ -443,7 +660,7 @@ pub fn truncate_html_for_preview(html: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_entry_preview, parse_cf_html, truncate_html_for_preview};
+    use super::{build_entry_preview, derive_rich_text_content, parse_cf_html, truncate_html_for_preview};
 
     #[test]
     fn rich_text_preview_prefers_readable_html_text() {
@@ -462,6 +679,39 @@ mod tests {
         );
 
         assert_eq!(preview, "[Rich Text Content]");
+    }
+
+    #[test]
+    fn rich_text_preview_strips_office_style_definition_noise() {
+        let html = concat!(
+            "Normal 0 false false false EN-US ZH-CN X-NONE ",
+            "/* Style Definitions */ ",
+            "table.MsoNormalTable {mso-style-name:普通表格; mso-style-noshow:yes;} ",
+            "<table><tr><td>学院意见</td><td>通过</td></tr></table>"
+        );
+
+        let preview = build_entry_preview("rich_text", html, Some(html));
+
+        assert_eq!(preview, "学院意见 通过");
+    }
+
+    #[test]
+    fn rich_text_content_prefers_renderable_html_over_wps_plain_text_noise() {
+        let text = "1 1 1 1 MicrosoftInternetExplorer4 0 2 DocumentNotSpecified 7.8 磅 Normal 0 顶顶顶顶";
+        let html = "<html><head><meta charset=\"utf-8\"><style>body{font-family:\"Times New Roman\";}</style></head><body><p>顶顶顶顶</p></body></html>";
+
+        let content = derive_rich_text_content(text, Some(html));
+
+        assert_eq!(content, "顶顶顶顶");
+    }
+
+    #[test]
+    fn rich_text_preview_ignores_wps_body_metadata_prefix() {
+        let html = "<html><body>1 1 1 1 MicrosoftInternetExplorer4 0 2 DocumentNotSpecified 7.8 磅 Normal 0 <span>顶顶顶顶</span></body></html>";
+
+        let preview = build_entry_preview("rich_text", html, Some(html));
+
+        assert_eq!(preview, "顶顶顶顶");
     }
 
     #[test]

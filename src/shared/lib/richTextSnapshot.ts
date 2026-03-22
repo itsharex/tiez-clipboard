@@ -1,5 +1,9 @@
 import { toTauriLocalImageSrc } from "./localImageSrc";
-import { isHtmlishTagText, repairHtmlFragment } from "./repairHtmlFragment";
+import {
+  isHtmlishTagText,
+  isOfficeStyleDefinitionText,
+  stripOfficePreviewNoise
+} from "./repairHtmlFragment";
 
 const SNAPSHOT_CACHE_LIMIT = 240;
 const SNAPSHOT_CACHE_VERSION = "v4";
@@ -69,7 +73,7 @@ const normalizeRichHtml = (html: string): {
   };
 } | null => {
   const parser = new DOMParser();
-  let processed = repairHtmlFragment(stripRichImageFallbackMarker((html || "").trim()));
+  let processed = stripOfficePreviewNoise(stripRichImageFallbackMarker((html || "").trim()));
   if (!processed) return null;
 
   if (
@@ -81,6 +85,12 @@ const normalizeRichHtml = (html: string): {
 
   const doc = parser.parseFromString(processed, "text/html");
   doc.querySelectorAll("script").forEach((el) => el.remove());
+  doc.querySelectorAll("style").forEach((style) => {
+    if (isOfficeStyleDefinitionText(style.textContent || "")) {
+      style.remove();
+    }
+  });
+  doc.querySelectorAll("meta, link, xml").forEach((el) => el.remove());
   doc.head.querySelectorAll("style").forEach((style) => {
     doc.body.prepend(style);
   });
@@ -93,14 +103,23 @@ const normalizeRichHtml = (html: string): {
           doc.body.removeChild(node);
           continue;
         }
-        if (isHtmlishTagText(text)) {
+        if (isHtmlishTagText(text) || isOfficeStyleDefinitionText(text)) {
           doc.body.removeChild(node);
           continue;
         }
       }
 
-      if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "style") {
-        continue;
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+        const tagName = element.tagName.toLowerCase();
+        if (tagName === "style" && isOfficeStyleDefinitionText(element.textContent || "")) {
+          doc.body.removeChild(node);
+          continue;
+        }
+        if (tagName === "meta" || tagName === "link" || tagName === "xml") {
+          doc.body.removeChild(node);
+          continue;
+        }
       }
 
       break;
