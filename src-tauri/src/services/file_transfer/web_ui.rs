@@ -323,6 +323,8 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
             --app-height: 100vh;
             --footer-shift: 0px;
             --composer-height: 76px;
+            --control-height: clamp(40px, 6.6vh, 58px);
+            --side-width: clamp(72px, 14vw, 92px);
         }}
 
         @media (prefers-color-scheme: dark) {{
@@ -543,11 +545,11 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
         .progress-inner {{ height: 100%; background: var(--accent-color); width: 0%; transition: width 0.2s; }}
 
         footer {{
-            padding: 10px 16px;
-            padding-bottom: calc(10px + env(safe-area-inset-bottom));
-            background: var(--bg-panel);
-            border-top: 2px solid var(--border-dark);
-            display: flex; gap: 12px; align-items: flex-end;
+            padding: 8px 16px;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            background: transparent;
+            border-top: none;
+            display: flex; gap: 12px; align-items: center;
             flex-shrink: 0;
             z-index: 10;
             transform: translateY(calc(-1 * var(--footer-shift)));
@@ -555,11 +557,12 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
             will-change: transform;
         }}
         .theme-mica footer, .theme-acrylic footer {{
-            background: rgba(255,255,255,0.7); backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(0,0,0,0.1);
+            background: transparent;
+            backdrop-filter: none;
+            border-top: none;
         }}
         @media (prefers-color-scheme: dark) {{
-            .theme-mica footer, .theme-acrylic footer {{ background: rgba(30,30,30,0.7); }}
+            .theme-mica footer, .theme-acrylic footer {{ background: transparent; }}
         }}
         
         .retro-btn {{
@@ -569,7 +572,7 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: var(--text-primary);
             transition: all 0.1s;
-            height: 40px;
+            height: var(--control-height);
             flex-shrink: 0;
             border-radius: var(--button-radius, var(--radius));
         }}
@@ -586,10 +589,11 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
             .theme-mica .retro-btn, .theme-acrylic .retro-btn {{ background: rgba(255,255,255,0.1); }}
         }}
 
-        .add-btn {{ width: 40px; font-size: 24px; font-weight: 900; }}
+        .add-btn {{ width: var(--side-width); min-width: var(--side-width); padding: 0; font-size: 24px; font-weight: 900; }}
         .send-btn {{
-            min-width: 72px;
-            padding: 0 16px;
+            width: var(--side-width);
+            min-width: var(--side-width);
+            padding: 0;
             background: var(--send-button-background, var(--accent-color));
             color: var(--send-button-color, #ffffff);
             border: var(--send-button-border, var(--button-border, 2px solid var(--border-dark)));
@@ -597,13 +601,15 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
         }}
         
         .text-input {{ 
-            flex: 1; height: 40px; min-height: 40px; max-height: 100px; padding: 10px 12px;
+            flex: 1; height: var(--control-height); min-height: var(--control-height); max-height: 100px; padding: calc((var(--control-height) - 20px) / 2) 12px;
             background: var(--bg-input); border: var(--input-border, 2px solid var(--border-dark));
             box-shadow: var(--input-shadow, inset 2px 2px 0 rgba(0,0,0,0.1));
             font-size: 14px; font-family: var(--content-font-family, var(--font-mono));
             color: var(--text-primary); outline: none;
             border-radius: var(--input-radius, var(--radius)); -webkit-appearance: none;
             resize: none; overflow-y: auto; line-height: 20px;
+            display: block;
+            margin: 0;
         }}
         .theme-mica .text-input, .theme-acrylic .text-input {{ box-shadow: none; border-width: 1px; }}
         @media (prefers-color-scheme: dark) {{

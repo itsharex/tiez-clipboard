@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -31,7 +31,17 @@ const FileTransferChatView = ({
     localIp,
     actualPort
 }: FileTransferChatViewProps) => {
-    const composerMinHeight = 46;
+    const resolveComposerMetrics = (height?: number) => {
+        const baseHeight = height ?? (typeof window !== "undefined" ? window.innerHeight : 0);
+        const controlHeight = Math.max(46, Math.min(84, Math.round(baseHeight * 0.1)));
+        const footerPaddingY = Math.max(8, Math.min(20, Math.round(controlHeight * 0.18)));
+        return { controlHeight, footerPaddingY };
+    };
+
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [composerMetrics, setComposerMetrics] = useState(() => resolveComposerMetrics());
+    const composerMinHeight = composerMetrics.controlHeight;
+    const composerSideWidth = Math.max(74, Math.round(composerMinHeight * 1.6));
     const [messages, setMessages] = useState<FileTransferMessage[]>([]);
     const [input, setInput] = useState("");
     const [appLogo, setAppLogo] = useState("");
@@ -47,6 +57,12 @@ const FileTransferChatView = ({
     const [isDragging, setIsDragging] = useState(false);
     const lastDropSignatureRef = useRef("");
     const lastDropHandledAtRef = useRef(0);
+    const chatViewStyle = {
+        position: 'relative',
+        ['--wt-control-height']: `${composerMinHeight}px`,
+        ['--wt-side-width']: `${composerSideWidth}px`,
+        ['--wt-footer-padding-y']: `${composerMetrics.footerPaddingY}px`
+    } as CSSProperties;
 
     const URL_REGEX = /((https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,})(?:\/[^\s<]*)?)/gi;
 
@@ -364,6 +380,23 @@ const FileTransferChatView = ({
 
     // Adjust textarea height
     useEffect(() => {
+        const element = rootRef.current;
+        if (!element || typeof ResizeObserver === "undefined") {
+            setComposerMetrics(resolveComposerMetrics());
+            return;
+        }
+
+        const updateMetrics = () => {
+            setComposerMetrics(resolveComposerMetrics(element.clientHeight));
+        };
+
+        updateMetrics();
+        const observer = new ResizeObserver(() => updateMetrics());
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = `${composerMinHeight}px`;
             const scrollHeight = textareaRef.current.scrollHeight;
@@ -436,8 +469,9 @@ const FileTransferChatView = ({
 
     return (
         <div
+            ref={rootRef}
             className="wt-chat-view"
-            style={{ position: 'relative' }}
+            style={chatViewStyle}
             onDragOver={(e) => {
                 // Critical: Prevent default browser behavior to allow drop
                 e.preventDefault();
@@ -728,7 +762,7 @@ const FileTransferChatView = ({
             <div className="wt-footer">
                 <div className="wt-composer">
                     <button
-                        className="wt-btn wt-btn-icon"
+                        className="wt-btn wt-btn-add"
                         title="Send File"
                         onClick={async () => {
                             try {
@@ -767,7 +801,7 @@ const FileTransferChatView = ({
                             }
                         }}
                     >
-                        <Plus size={18} />
+                        <Plus size={16} />
                     </button>
 
                     <div className="wt-input-wrap">

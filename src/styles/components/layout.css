@@ -115,6 +115,11 @@ select.search-input option {
   width: 100%;
 }
 
+.main-content.main-content-chat-mode {
+  padding-bottom: 0;
+  gap: 0;
+}
+
 .virtual-list-wrapper {
   width: 100%;
   height: 100%;

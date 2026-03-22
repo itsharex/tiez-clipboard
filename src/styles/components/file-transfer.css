@@ -124,10 +124,16 @@
 
 /* --- Web Transfer Style (Mirroring file_transfer.rs) --- */
 .wt-chat-view{
+  --wt-control-height: 46px;
+  --wt-side-width: 74px;
+  --wt-footer-padding-y: 8px;
+  --wt-composer-max-width: 1040px;
   flex: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   background-color: var(--bg-body);
   font-family: var(--content-font-family, var(--font-main));
@@ -277,7 +283,7 @@
 .wt-header{
   padding: 16px;
   background: var(--bg-toolbar);
-  border-bottom: 2px solid var(--border-dark);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .wt-info-panel{
@@ -369,7 +375,7 @@
 /* New Header/QR Styles */
 .wt-header{
   padding: 8px;
-  border-bottom: 2px solid var(--border-dark);
+  border-bottom: 1px solid var(--line-soft);
   background: var(--bg-element);
 }
 
@@ -865,18 +871,27 @@ body.theme-mica .wt-header{
 .wt-footer{
   background: transparent;
   border-top: none;
-  padding: 10px 12px 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--wt-footer-padding-y) 12px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .wt-composer{
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
-  padding: 8px;
-  background: var(--bg-toolbar);
-  border: 2px solid var(--border-dark);
-  border-radius: var(--radius-panel);
-  box-shadow: 4px 4px 0 0 var(--shadow-color);
+  padding: 0;
+  width: min(100%, var(--wt-composer-max-width));
+  min-width: 0;
+  margin: 0 auto;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  box-sizing: border-box;
 }
 
 .wt-input-wrap{
@@ -884,15 +899,16 @@ body.theme-mica .wt-header{
   display: flex;
   flex: 1;
   min-width: 0;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .wt-input{
   display: block;
   width: 100%;
-  min-height: 46px;
+  height: var(--wt-control-height);
+  min-height: var(--wt-control-height);
   margin: 0;
-  padding: 11px 40px 11px 14px;
+  padding: calc((var(--wt-control-height) - 24px) / 2 - 1px) 40px calc((var(--wt-control-height) - 24px) / 2 - 1px) 14px;
   background: var(--bg-input);
   border: var(--input-border, 2px solid var(--border-dark));
   border-radius: var(--input-radius, 10px);
@@ -916,8 +932,8 @@ body.theme-mica .wt-header{
 }
 
 .wt-btn{
-  height: 46px;
-  min-width: 46px;
+  height: var(--wt-control-height);
+  min-width: var(--wt-control-height);
   padding: 0 14px;
   background: var(--bg-button);
   border: var(--button-border, 2px solid var(--border-dark));
@@ -943,23 +959,44 @@ body.theme-mica .wt-header{
 }
 
 .wt-btn-icon{
+  min-width: var(--wt-side-width);
+  width: var(--wt-side-width);
+  padding: 0;
+}
+
+.wt-btn-add{
+  width: calc(var(--wt-control-height) - 4px);
+  min-width: calc(var(--wt-control-height) - 4px);
   padding: 0;
 }
 
 .wt-btn.send{
-  min-width: 74px;
+  width: var(--wt-side-width);
+  min-width: var(--wt-side-width);
+  padding: 0;
   background: var(--accent-color);
   color: #ffffff;
+  border-color: rgba(var(--accent-color-rgb), 0.9);
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.04em;
-  box-shadow: var(--button-active-filled-shadow, var(--button-shadow, 2px 2px 0 0 var(--border-dark)));
+  box-shadow: 0 8px 18px rgba(24, 34, 53, 0.16);
+}
+
+.wt-btn.send:hover{
+  background: var(--accent-hover);
+  box-shadow: 0 10px 20px rgba(24, 34, 53, 0.2);
+}
+
+.wt-btn.send:active{
+  background: var(--accent-hover);
+  box-shadow: 0 4px 10px rgba(24, 34, 53, 0.14);
 }
 
 .wt-expand-btn{
   position: absolute;
   right: 8px;
-  bottom: 8px;
+  bottom: calc((var(--wt-control-height) - 28px) / 2);
   width: 28px;
   height: 28px;
   padding: 0;
@@ -980,10 +1017,10 @@ body.theme-mica .wt-header{
 
 body.theme-acrylic .wt-composer,
 body.theme-mica .wt-composer{
-  background: var(--bg-panel);
-  border: var(--panel-border);
-  border-radius: var(--panel-radius);
-  box-shadow: var(--panel-shadow);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 body.theme-acrylic .wt-input,
@@ -1013,15 +1050,21 @@ body.theme-mica .wt-btn:active{
 
 body.theme-acrylic .wt-btn.send,
 body.theme-mica .wt-btn.send{
-  border: none;
-  box-shadow: var(--button-active-filled-shadow);
+  background: var(--accent-color);
+  color: #ffffff;
+  border: 1px solid rgba(var(--accent-color-rgb), 0.82);
+  box-shadow: 0 8px 18px rgba(24, 34, 53, 0.14);
 }
 
-body.theme-acrylic .wt-btn.send,
-body.theme-mica .wt-btn.send{
-  background: rgba(var(--accent-color-rgb), 0.16);
-  color: var(--text-primary);
-  border: 1px solid rgba(var(--accent-color-rgb), 0.24);
+body.theme-acrylic .wt-btn.send:hover,
+body.theme-mica .wt-btn.send:hover{
+  background: var(--accent-hover);
+  box-shadow: 0 10px 20px rgba(24, 34, 53, 0.18);
+}
+
+body.theme-acrylic .wt-btn.send:active,
+body.theme-mica .wt-btn.send:active{
+  box-shadow: 0 4px 10px rgba(24, 34, 53, 0.12);
 }
 
 .wt-info-panel{

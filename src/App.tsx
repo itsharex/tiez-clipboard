@@ -834,7 +834,7 @@ const App = () => {
       />
 
       <main
-        className="main-content"
+        className={`main-content ${showSettings && chatMode ? 'main-content-chat-mode' : ''}`}
         style={{ overflowY: (showSettings || effectiveShowTagManager) ? 'auto' : 'hidden' }}
         onWheel={handleMainWheel}
       >
