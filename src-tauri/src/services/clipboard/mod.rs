@@ -14,6 +14,10 @@ use utils::*;
 const DEFAULT_CLIPBOARD_SETTLE_DELAY_MS: u64 = 100;
 const SNIPPING_TOOL_SETTLE_DELAY_MS: u64 = 1200;
 
+fn should_capture_file_entries(capture_files_enabled: bool) -> bool {
+    capture_files_enabled
+}
+
 fn is_snipping_tool_source(
     source_snapshot: &crate::infrastructure::windows_api::window_tracker::ActiveAppInfo,
 ) -> bool {
@@ -261,7 +265,7 @@ pub fn start_clipboard_monitor(app_handle: AppHandle) {
                             monitor_state.last_text = content.clone();
                             
                             let settings = app.state::<SettingsState>();
-                            if settings.capture_files.load(Ordering::Relaxed) || files.len() == 1 {
+                            if should_capture_file_entries(settings.capture_files.load(Ordering::Relaxed)) {
                                 process_new_entry(&app, ClipboardData::Files(files), None, Some(source_snapshot.clone()));
                             }
                         }
@@ -443,7 +447,7 @@ pub fn process_new_entry(
 
 #[cfg(test)]
 mod tests {
-    use super::is_snipping_tool_source;
+    use super::{is_snipping_tool_source, should_capture_file_entries};
     use crate::infrastructure::windows_api::window_tracker::ActiveAppInfo;
 
     #[test]
@@ -477,5 +481,15 @@ mod tests {
         };
 
         assert!(!is_snipping_tool_source(&source));
+    }
+
+    #[test]
+    fn file_capture_follows_setting_when_disabled() {
+        assert!(!should_capture_file_entries(false));
+    }
+
+    #[test]
+    fn file_capture_follows_setting_when_enabled() {
+        assert!(should_capture_file_entries(true));
     }
 }

@@ -813,3 +813,50 @@ body.theme-acrylic .wt-chat-box,
 body.theme-mica .wt-chat-box{
   background-color: transparent;
 }
+
+body.theme-acrylic .file-transfer-panel,
+body.theme-mica .file-transfer-panel,
+body.theme-acrylic .wt-info-panel,
+body.theme-mica .wt-info-panel{
+  background: var(--bg-panel);
+  border: var(--panel-border);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+}
+
+body.theme-acrylic .qr-container,
+body.theme-mica .qr-container,
+body.theme-acrylic .wt-qr-container,
+body.theme-mica .wt-qr-container{
+  background: var(--wt-qr-background);
+  border: var(--data-panel-border);
+  border-radius: 14px;
+  box-shadow: var(--data-panel-shadow);
+}
+
+body.theme-acrylic .scan-title,
+body.theme-mica .scan-title{
+  border-bottom: 1px solid var(--panel-divider-color);
+  padding-bottom: 6px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+body.theme-acrylic .open-browser-btn,
+body.theme-mica .open-browser-btn{
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--button-radius);
+  box-shadow: var(--button-active-filled-shadow);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+body.theme-acrylic .wt-header,
+body.theme-mica .wt-header{
+  background: transparent;
+}
