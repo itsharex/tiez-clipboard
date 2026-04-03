@@ -30,7 +30,7 @@ pub fn toggle_clipboard_pin(
     app_data_dir: State<'_, AppDataDir>,
     id: i64,
     is_pinned: bool,
-) -> AppResult<()> {
+) -> AppResult<i64> {
     let mut real_id = id;
     let mut entry_to_save = None;
 
@@ -70,7 +70,7 @@ pub fn toggle_clipboard_pin(
             .toggle_pin_with_conn(&conn, real_id, is_pinned)
             .map_err(AppError::from)?;
     }
-    Ok(())
+    Ok(real_id)
 }
 
 #[tauri::command]
