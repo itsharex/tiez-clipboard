@@ -7,6 +7,7 @@ export type StateSetter<T> = Dispatch<SetStateAction<T>>;
 export type InstalledAppOption = { label: string; value: string };
 export type DefaultAppsMap = Record<string, string>;
 export type SettingsSubpage = "home" | "advanced";
+export type QuickPasteModifier = "disabled" | "ctrl" | "alt" | "shift" | "win";
 
 export interface AppState {
   showSettings: boolean;
@@ -71,6 +72,8 @@ export interface AppState {
   setRichPasteHotkey: StateSetter<string>;
   searchHotkey: string;
   setSearchHotkey: StateSetter<string>;
+  quickPasteModifier: QuickPasteModifier;
+  setQuickPasteModifier: StateSetter<QuickPasteModifier>;
   sequentialMode: boolean;
   setSequentialModeState: StateSetter<boolean>;
   isRecording: boolean;

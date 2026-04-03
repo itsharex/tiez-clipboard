@@ -5,6 +5,17 @@ use crate::infrastructure::repository::settings_repo::SettingsRepository;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Manager, State};
 
+fn normalize_quick_paste_modifier(value: &str) -> &'static str {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "disabled" => "disabled",
+        "ctrl" => "ctrl",
+        "alt" => "alt",
+        "shift" => "shift",
+        "win" => "win",
+        _ => "disabled",
+    }
+}
+
 #[tauri::command]
 pub fn set_sequential_mode(
     app_handle: AppHandle,
@@ -91,7 +102,7 @@ pub fn save_setting(
     db_state: State<'_, DbState>,
     settings_state: State<'_, crate::app_state::SettingsState>,
     key: String,
-    value: String,
+    mut value: String,
 ) -> AppResult<()> {
     match key.as_str() {
         "app.arrow_key_selection" => {
@@ -158,6 +169,12 @@ pub fn save_setting(
             settings_state
                 .hide_tray_icon
                 .store(value == "true", Ordering::Relaxed);
+        }
+        "app.quick_paste_modifier" => {
+            value = normalize_quick_paste_modifier(&value).to_string();
+            if let Ok(mut guard) = settings_state.quick_paste_modifier.lock() {
+                *guard = value.clone();
+            }
         }
         _ => {}
     }
@@ -489,6 +506,11 @@ pub fn reset_settings(
         .get("app.search_hotkey")
         .unwrap_or(Some("Alt+F".to_string()))
         .unwrap_or("Alt+F".to_string());
+    let quick_paste_modifier = state
+        .settings_repo
+        .get("app.quick_paste_modifier")
+        .unwrap_or(Some("disabled".to_string()))
+        .unwrap_or("disabled".to_string());
 
     settings_state
         .sequential_mode
@@ -508,6 +530,10 @@ pub fn reset_settings(
     {
         let mut guard = settings_state.search_hotkey.lock().unwrap();
         *guard = search_hotkey.clone();
+    }
+    {
+        let mut guard = settings_state.quick_paste_modifier.lock().unwrap();
+        *guard = normalize_quick_paste_modifier(&quick_paste_modifier).to_string();
     }
     {
         let mut guard = crate::global_state::HOTKEY_STRING.lock().unwrap();

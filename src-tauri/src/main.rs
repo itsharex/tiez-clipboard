@@ -139,6 +139,9 @@ fn main() {
             app::commands::save_emoji_favorite_url,
             app::commands::get_file_size,
             app::commands::save_file_copy,
+
+            services::clipboard_ops::paste_text_directly,
+            services::clipboard_ops::paste_content_transiently,
             
             services::file_transfer::send_chat_message,
             services::file_transfer::get_chat_history,

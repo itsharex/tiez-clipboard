@@ -4,6 +4,7 @@ use crate::database::DbState;
 use crate::infrastructure::repository::settings_repo::SettingsRepository;
 use crate::infrastructure::repository::clipboard_repo::ClipboardRepository;
 use crate::error::{AppResult, AppError};
+use crate::services::clipboard::{clipboard_image_fallback_data_url, parse_cf_html};
 use chrono::Utc;
 use base64::{engine::general_purpose, Engine as _};
 use regex::Regex;
@@ -29,6 +30,21 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 const RICH_IMAGE_FALLBACK_PREFIX: &str = "<!--TIEZ_RICH_IMAGE:";
 const RICH_IMAGE_FALLBACK_SUFFIX: &str = "-->";
+
+#[derive(Clone)]
+enum ClipboardSnapshot {
+    Empty,
+    Text {
+        text: String,
+        html: Option<String>,
+    },
+    Image {
+        data_url: String,
+    },
+    Files {
+        paths: Vec<String>,
+    },
+}
 
 fn split_rich_html_and_image_fallback(html: &str) -> (String, Option<String>) {
     if let Some(start) = html.rfind(RICH_IMAGE_FALLBACK_PREFIX) {
@@ -82,6 +98,86 @@ fn resolve_rich_image_fallback_bytes(payload: &str) -> Option<Vec<u8>> {
     }
 
     std::fs::read(decoded_path).ok()
+}
+
+fn capture_clipboard_snapshot() -> ClipboardSnapshot {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        if let Some(files) = crate::infrastructure::windows_api::win_clipboard::get_clipboard_files() {
+            if !files.is_empty() {
+                return ClipboardSnapshot::Files { paths: files };
+            }
+        }
+    }
+
+    let text = arboard::Clipboard::new()
+        .ok()
+        .and_then(|mut clipboard| clipboard.get_text().ok())
+        .filter(|value| !value.is_empty());
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(text_value) = text.clone() {
+            if let Some(html_raw) = unsafe {
+                crate::infrastructure::windows_api::win_clipboard::get_clipboard_raw_format("HTML Format")
+            } {
+                if let Some(html) = parse_cf_html(&html_raw).filter(|value| !value.trim().is_empty()) {
+                    return ClipboardSnapshot::Text {
+                        text: text_value,
+                        html: Some(html),
+                    };
+                }
+            }
+        }
+
+        if let Some(data_url) = clipboard_image_fallback_data_url() {
+            return ClipboardSnapshot::Image { data_url };
+        }
+    }
+
+    if let Some(text_value) = text {
+        return ClipboardSnapshot::Text {
+            text: text_value,
+            html: None,
+        };
+    }
+
+    ClipboardSnapshot::Empty
+}
+
+async fn restore_clipboard_snapshot(snapshot: ClipboardSnapshot) -> AppResult<()> {
+    match snapshot {
+        ClipboardSnapshot::Empty => {
+            #[cfg(target_os = "windows")]
+            unsafe {
+                crate::infrastructure::windows_api::win_clipboard::clear_clipboard()
+                    .map_err(AppError::Internal)?;
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                let mut clipboard = arboard::Clipboard::new().map_err(AppError::from)?;
+                clipboard
+                    .set_text(String::new())
+                    .map_err(|e| AppError::Internal(format!("Clipboard error: {}", e)))?;
+            }
+
+            Ok(())
+        }
+        ClipboardSnapshot::Text { text, html } => {
+            if let Some(html_content) = html {
+                prepare_clipboard_payload(&text, "rich_text", Some(&html_content), true).await
+            } else {
+                prepare_clipboard_payload(&text, "text", None, false).await
+            }
+        }
+        ClipboardSnapshot::Image { data_url } => {
+            prepare_clipboard_payload(&data_url, "image", None, false).await
+        }
+        ClipboardSnapshot::Files { paths } => {
+            prepare_clipboard_payload(&paths.join("\n"), "file", None, false).await
+        }
+    }
 }
 
 #[tauri::command]
@@ -154,6 +250,132 @@ pub async fn copy_to_clipboard(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn paste_text_directly(
+    app_handle: tauri::AppHandle,
+    content: String,
+) -> AppResult<()> {
+    if content.is_empty() {
+        return Ok(());
+    }
+
+    handle_window_focus_for_paste(&app_handle).await?;
+    send_paste_keystroke("game_mode", Some(&content), Some("text"));
+    hide_window_after_paste(&app_handle).await;
+    play_paste_sound_if_enabled(&app_handle);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn paste_content_transiently(
+    app_handle: tauri::AppHandle,
+    state: State<'_, DbState>,
+    session: State<'_, SessionHistory>,
+    mut content: String,
+    content_type: String,
+    id: i64,
+    paste_with_format: Option<bool>,
+) -> AppResult<()> {
+    let previous_clipboard = capture_clipboard_snapshot();
+    let mut html_content: Option<String> = None;
+
+    if id != 0 {
+        if id > 0 {
+            if let Ok(Some((full_content, _ctype, html))) = state.repo.get_entry_content_with_html(id) {
+                content = full_content;
+                html_content = html;
+            }
+        } else {
+            let session_items = session.inner().0.lock().unwrap();
+            if let Some(item) = session_items.iter().find(|i| i.id == id) {
+                content = item.content.clone();
+                html_content = item.html_content.clone();
+            }
+        }
+    }
+
+    if content_type == "rich_text" {
+        let normalized =
+            crate::services::clipboard::derive_rich_text_content(&content, html_content.as_deref());
+        if !normalized.trim().is_empty() {
+            content = normalized;
+        }
+    }
+
+    handle_window_focus_for_paste(&app_handle).await?;
+
+    prepare_clipboard_payload(
+        &content,
+        &content_type,
+        html_content.as_deref(),
+        paste_with_format.unwrap_or(content_type == "rich_text" && html_content.as_deref().is_some()),
+    )
+    .await?;
+
+    let paste_result = perform_paste_action(
+        &app_handle,
+        &state,
+        id,
+        false,
+        Some(&content),
+        &content_type,
+        None,
+    )
+    .await;
+
+    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    let restore_result = restore_clipboard_snapshot(previous_clipboard).await;
+
+    paste_result?;
+    restore_result?;
+
+    Ok(())
+}
+
+pub async fn paste_history_item_by_index(
+    app_handle: tauri::AppHandle,
+    index: usize,
+) -> AppResult<bool> {
+    let history = crate::app::commands::history_cmd::get_clipboard_history(
+        app_handle.state::<DbState>(),
+        app_handle.state::<SessionHistory>(),
+        (index + 1) as i32,
+        0,
+        None,
+    )?;
+
+    let Some(item) = history.get(index).cloned() else {
+        return Ok(false);
+    };
+
+    // Only allow quick paste for pinned items
+    if !item.is_pinned {
+        return Ok(false);
+    }
+
+    let delete_after_use = {
+        let settings = app_handle.state::<SettingsState>();
+        settings.delete_after_paste.load(Ordering::Relaxed)
+    };
+
+    copy_to_clipboard(
+        app_handle.clone(),
+        app_handle.state::<DbState>(),
+        app_handle.state::<SessionHistory>(),
+        item.content,
+        item.content_type,
+        true,
+        item.id,
+        delete_after_use,
+        Some(false),
+        None,
+    )
+    .await?;
+
+    Ok(true)
 }
 
 async fn handle_window_focus_for_paste(app_handle: &tauri::AppHandle) -> AppResult<()> {

@@ -67,7 +67,7 @@ fn read_clipboard_image_once(
     value
 }
 
-fn clipboard_image_fallback_data_url() -> Option<String> {
+pub fn clipboard_image_fallback_data_url() -> Option<String> {
     for _ in 0..3 {
         unsafe {
             // Some sources (e.g. Office apps) may provide PNG/JPEG custom formats.
@@ -426,7 +426,7 @@ pub fn start_clipboard_monitor(app_handle: AppHandle) {
 }
 
 pub use pipeline::{ClipboardData, ClipboardPipeline, PipelineContext};
-pub use utils::{build_entry_preview, derive_rich_text_content, repair_html_fragment, truncate_html_for_preview};
+pub use utils::{build_entry_preview, derive_rich_text_content, parse_cf_html, repair_html_fragment, truncate_html_for_preview};
 
 pub fn process_new_entry(
     app_handle: &AppHandle,

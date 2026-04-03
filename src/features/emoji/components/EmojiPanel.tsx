@@ -316,6 +316,21 @@ const EmojiPanel = ({ t, favorites, setFavorites, activeTab, setActiveTab, saveS
   };
 
   const handleSend = async (content: string, contentType: string) => {
+    if (contentType === "text") {
+      await invoke("paste_text_directly", { content });
+      return;
+    }
+
+    if (contentType === "image") {
+      await invoke("paste_content_transiently", {
+        content,
+        contentType,
+        id: 0,
+        pasteWithFormat: false
+      });
+      return;
+    }
+
     await invoke("copy_to_clipboard", {
       content,
       contentType,

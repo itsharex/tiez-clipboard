@@ -3,6 +3,7 @@ import type { ComponentType, ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import type { QuickPasteModifier } from "../../../app/types";
 
 interface LabelWithHintProps {
     label: string;
@@ -38,6 +39,8 @@ interface ClipboardSettingsGroupProps {
     isRecordingSearch: boolean;
     setIsRecordingSearch: (val: boolean) => void;
     updateSearchHotkey: (key: string) => void;
+    quickPasteModifier: QuickPasteModifier;
+    setQuickPasteModifier: (val: QuickPasteModifier) => void;
     deleteAfterPaste: boolean;
     setDeleteAfterPaste: (val: boolean) => void;
     moveToTopAfterPaste: boolean;
@@ -407,6 +410,29 @@ const ClipboardSettingsGroup = (props: ClipboardSettingsGroupProps) => {
                             />
                             <div className="toggle"><div className="left" /><div className="right" /></div>
                         </label>
+                    </div>
+                    <div className="setting-item">
+                        <props.LabelWithHint
+                            label={props.t('quick_paste_modifier')}
+                            hint={props.t('quick_paste_modifier_hint')}
+                            hintKey="quick_paste_modifier"
+                        />
+                        <select
+                            className="search-input"
+                            style={{ borderRadius: '0', padding: '6px', width: '120px', background: 'var(--bg-input)', border: '2px solid var(--border-dark)', color: 'var(--text-primary)', fontSize: '12px' }}
+                            value={props.quickPasteModifier}
+                            onChange={(e) => {
+                                const val = e.target.value as QuickPasteModifier;
+                                props.setQuickPasteModifier(val);
+                                props.saveAppSetting('quick_paste_modifier', val);
+                            }}
+                        >
+                            <option value="disabled">{props.t('quick_paste_modifier_disabled')}</option>
+                            <option value="ctrl">{props.t('quick_paste_modifier_ctrl')}</option>
+                            <option value="alt">{props.t('quick_paste_modifier_alt')}</option>
+                            <option value="shift">{props.t('quick_paste_modifier_shift')}</option>
+                            <option value="win">{props.t('quick_paste_modifier_win')}</option>
+                        </select>
                     </div>
                     <div className="setting-item">
                         <props.LabelWithHint

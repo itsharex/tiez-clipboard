@@ -609,6 +609,7 @@ const ClipboardItem = ({
     theme,
     language,
     t,
+    quickPasteHint,
     isAIProcessing,
     onSelect,
     onCopy,
@@ -688,6 +689,12 @@ const ClipboardItem = ({
         ? (richTextFallback?.imageSrc || null)
         : effectiveRichTextSnapshotSrc;
     const useSnapshotPreviewImage = snapshotPreviewEnabled && !useRichImageFallback && !!effectiveRichTextSnapshotSrc;
+    const visibleTagCount = item.tags?.length || 0;
+    const hasTagsSection = visibleTagCount > 0 || isEditingTags;
+    const overlayTagsInPreview = !compactMode && !isEditingTags && visibleTagCount > 0;
+    const quickPasteTitle = quickPasteHint
+        ? `${t('quick_paste_modifier')}: ${quickPasteHint.combo}`
+        : undefined;
 
     useEffect(() => {
         let cancelled = false;
@@ -1003,6 +1010,110 @@ const ClipboardItem = ({
         );
     };
 
+    const renderTagsContainer = (overlay = false) => (
+        <div
+            className={`item-tags-container${overlay ? ' overlay' : ''}`}
+            style={{
+                marginTop: overlay ? '0' : '2px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'flex-end',
+                gap: '4px',
+                paddingTop: '0'
+            }}>
+            {item.tags?.map(tag => {
+                const tagBackground = tagColors?.[tag] || getTagColor(tag, theme);
+                const tagTextColor = getTagTextColor(tagBackground);
+                return (
+                    <span
+                        key={tag}
+                        className="tag-chip"
+                        style={{
+                            background: tagBackground,
+                            color: tagTextColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                    >
+                        {tag}
+                        {isEditingTags && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTagDelete(tag);
+                                }}
+                                style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', opacity: 0.72, cursor: 'pointer', display: 'flex' }}
+                            >
+                                <X size={8} />
+                            </button>
+                        )}
+                    </span>
+                );
+            })}
+
+            {isEditingTags && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <input
+                        ref={tagInputRef}
+                        type="text"
+                        value={localTagInput}
+                        onCompositionStart={() => {
+                            isComposing.current = true;
+                        }}
+                        onCompositionEnd={(e) => {
+                            isComposing.current = false;
+                            const val = (e.target as HTMLInputElement).value;
+                            setLocalTagInput(val);
+                            onTagInput(val);
+                        }}
+                        onMouseDown={() => {
+                            invoke('activate_window_focus').catch(console.error);
+                        }}
+                        onFocus={() => {
+                            invoke('activate_window_focus').catch(console.error);
+                        }}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setLocalTagInput(val);
+                            if (!isComposing.current) {
+                                onTagInput(val);
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isComposing.current) {
+                                onTagAdd();
+                            }
+                        }}
+                        className="tag-input"
+                        placeholder="New tag..."
+                        style={{
+                            background: 'var(--bg-input)',
+                            border: 'none',
+                            borderRadius: '0',
+                            padding: '2px 4px',
+                            fontSize: '10px',
+                            color: 'var(--text-primary)',
+                            width: '60px',
+                            outline: 'none'
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    />
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onTagAdd();
+                        }}
+                        className="btn-icon"
+                        style={{ padding: '2px', height: '16px', width: '16px' }}
+                    >
+                        <Plus size={10} />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <motion.div
             id={id}
@@ -1121,7 +1232,7 @@ const ClipboardItem = ({
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="item-meta-right">
                     <div className="item-actions">
                         {(item.tags?.includes('sensitive') || item.tags?.includes('密码') || item.tags?.includes('password')) && (
                             <button
@@ -1176,8 +1287,13 @@ const ClipboardItem = ({
                             <X size={12} />
                         </button>
                     </div>
-                    <div className="app-info" style={{ opacity: 0.6, fontSize: '10px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <span>{getConciseTime(item.timestamp, language)}</span>
+                    <div className="item-meta-right-info">
+                        {!item.is_pinned && <span className="meta-time">{getConciseTime(item.timestamp, language)}</span>}
+                        {quickPasteHint && (
+                            <span className="quick-paste-hint" title={quickPasteTitle}>
+                                {quickPasteHint.combo}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1187,9 +1303,10 @@ const ClipboardItem = ({
                     <Pin size={10} fill="currentColor" />
                 </div>
             )}
-            <div
-                className={`content-preview ${item.content_type === 'rich_text' ? 'rich-text' : ''} ${item.content_type === 'file' ? 'file-preview' : ''} ${isSensitiveHidden ? 'sensitive-blur' : ''}`}
-            >
+            <div className={`content-preview-shell${overlayTagsInPreview ? ' has-overlay-tags' : ''}`}>
+                <div
+                    className={`content-preview ${item.content_type === 'rich_text' ? 'rich-text' : ''} ${item.content_type === 'file' ? 'file-preview' : ''} ${isSensitiveHidden ? 'sensitive-blur' : ''}`}
+                >
                 {item.content_type === "image" ? (
                     <div style={{ position: 'relative' }}>
                         {item.is_external && item.file_preview_exists === false ? (
@@ -1356,6 +1473,8 @@ const ClipboardItem = ({
                         )
                         : item.preview
                 )}
+                {overlayTagsInPreview && renderTagsContainer(true)}
+            </div>
             </div>
 
             {/* AI Options - Compact Mode: Dropdown Panel, Normal Mode: Inline */}
@@ -1434,109 +1553,7 @@ const ClipboardItem = ({
                 )}
             </AnimatePresence>
 
-            {(item.tags?.length > 0 || isEditingTags) && (
-                <div
-                    className="item-tags-container"
-                    style={{
-                        marginTop: '2px',
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        justifyContent: 'flex-end',
-                        gap: '4px',
-                        paddingTop: '0'
-                    }}>
-                    {item.tags?.map(tag => {
-                        const tagBackground = tagColors?.[tag] || getTagColor(tag, theme);
-                        const tagTextColor = getTagTextColor(tagBackground);
-                        return (
-                            <span
-                                key={tag}
-                                className="tag-chip"
-                                style={{
-                                    background: tagBackground,
-                                    color: tagTextColor,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                }}
-                            >
-                                {tag}
-                                {isEditingTags && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onTagDelete(tag);
-                                        }}
-                                        style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', opacity: 0.72, cursor: 'pointer', display: 'flex' }}
-                                    >
-                                        <X size={8} />
-                                    </button>
-                                )}
-                            </span>
-                        );
-                    })}
-
-                    {isEditingTags && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <input
-                                ref={tagInputRef}
-                                type="text"
-                                value={localTagInput}
-                                onCompositionStart={() => {
-                                    isComposing.current = true;
-                                }}
-                                onCompositionEnd={(e) => {
-                                    isComposing.current = false;
-                                    const val = (e.target as HTMLInputElement).value;
-                                    setLocalTagInput(val);
-                                    onTagInput(val);
-                                }}
-                                onMouseDown={() => {
-                                    invoke('activate_window_focus').catch(console.error);
-                                }}
-                                onFocus={() => {
-                                    invoke('activate_window_focus').catch(console.error);
-                                }}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setLocalTagInput(val);
-                                    if (!isComposing.current) {
-                                        onTagInput(val);
-                                    }
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !isComposing.current) {
-                                        onTagAdd();
-                                    }
-                                }}
-                                className="tag-input"
-                                placeholder="New tag..."
-                                style={{
-                                    background: 'var(--bg-input)',
-                                    border: 'none',
-                                    borderRadius: '0',
-                                    padding: '2px 4px',
-                                    fontSize: '10px',
-                                    color: 'var(--text-primary)',
-                                    width: '60px',
-                                    outline: 'none'
-                                }}
-                                onClick={e => e.stopPropagation()}
-                            />
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onTagAdd();
-                                }}
-                                className="btn-icon"
-                                style={{ padding: '2px', height: '16px', width: '16px' }}
-                            >
-                                <Plus size={10} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
+            {!overlayTagsInPreview && hasTagsSection && renderTagsContainer()}
         </motion.div>
     );
 };
@@ -1555,6 +1572,7 @@ export default memo(ClipboardItem, (prevProps, nextProps) => {
         prevProps.item.is_external === nextProps.item.is_external &&
         prevProps.item.file_preview_exists === nextProps.item.file_preview_exists &&
         prevProps.item.tags === nextProps.item.tags &&
+        prevProps.quickPasteHint?.combo === nextProps.quickPasteHint?.combo &&
         prevProps.isRevealed === nextProps.isRevealed &&
         prevProps.isEditingTags === nextProps.isEditingTags &&
         prevProps.isAIProcessing === nextProps.isAIProcessing &&

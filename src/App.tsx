@@ -45,6 +45,8 @@ import { AnnouncementSystem } from "./shared/components/Announcement";
 import { useAnnouncements } from "./shared/hooks/useAnnouncements";
 import { useOverlays } from "./shared/hooks/useOverlays";
 import type { ClipboardEntry } from "./shared/types";
+import type { QuickPasteModifier } from "./features/app/types";
+import type { QuickPasteHint } from "./features/clipboard/types";
 import type { VirtualClipboardListHandle } from "./features/clipboard/types";
 
 const insertHistoryItem = (list: ClipboardEntry[], item: ClipboardEntry) => {
@@ -75,6 +77,38 @@ const insertHistoryItem = (list: ClipboardEntry[], item: ClipboardEntry) => {
   }
 
   next.splice(insertIndex, 0, item);
+  return next;
+};
+
+const QUICK_PASTE_MODIFIER_LABELS: Record<
+  Exclude<QuickPasteModifier, "disabled">,
+  string
+> = {
+  ctrl: "Ctrl",
+  alt: "Alt",
+  shift: "Shift",
+  win: "Win"
+};
+
+const buildQuickPasteHintsById = (
+  items: ClipboardEntry[],
+  quickPasteModifier: QuickPasteModifier
+): Record<number, QuickPasteHint> => {
+  if (quickPasteModifier === "disabled") return {};
+
+  const modifierLabel = QUICK_PASTE_MODIFIER_LABELS[quickPasteModifier];
+  const next: Record<number, QuickPasteHint> = {};
+
+  const pinnedItems = items.filter(item => item.is_pinned);
+
+  pinnedItems.slice(0, 10).forEach((item, index) => {
+    const slot = index === 9 ? "0" : String(index + 1);
+    next[item.id] = {
+      slot,
+      combo: `${modifierLabel}+${slot}`
+    };
+  });
+
   return next;
 };
 
@@ -138,6 +172,8 @@ const App = () => {
     setRichPasteHotkey,
     searchHotkey,
     setSearchHotkey,
+    quickPasteModifier,
+    setQuickPasteModifier,
     sequentialMode,
     setSequentialModeState,
     isRecording,
@@ -286,6 +322,10 @@ const App = () => {
   const tagColors = useTagColors();
   const virtualListRef = useRef<VirtualClipboardListHandle | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [quickPasteVersion, setQuickPasteVersion] = useState(0);
+  const [quickPasteHintsById, setQuickPasteHintsById] = useState<
+    Record<number, QuickPasteHint>
+  >({});
   const PAGE_SIZE = 200;
   const { fetchHistory, loadMoreHistory } = useHistoryFetch({
     debouncedSearch,
@@ -318,6 +358,18 @@ const App = () => {
   });
 
   const showScrollTopVisible = showScrollTop && scrollTopButtonEnabled;
+  const quickPasteRefreshSeed = useMemo(
+    () =>
+      history
+        .filter(item => item.is_pinned)
+        .slice(0, 10)
+        .map(
+          (item) =>
+            `${item.id}:${item.timestamp}:${item.pinned_order || 0}`
+        )
+        .join("|"),
+    [history]
+  );
 
   const getCurrentSourceView = useCallback((): FileTransferSourceView => {
     if (effectiveShowTagManager) return "tag_manager";
@@ -542,6 +594,7 @@ const App = () => {
     setSequentialHotkey,
     setRichPasteHotkey,
     setSearchHotkey,
+    setQuickPasteModifier,
     setSequentialModeState,
     setSoundEnabled,
     setSoundVolume,
@@ -596,6 +649,33 @@ const App = () => {
     }
   }, [tagManagerEnabled, showTagManager, setShowTagManager]);
 
+  useEffect(() => {
+    if (quickPasteModifier === "disabled") {
+      setQuickPasteHintsById({});
+      return;
+    }
+
+    let cancelled = false;
+
+    invoke<ClipboardEntry[]>("get_clipboard_history", {
+      limit: 10,
+      offset: 0
+    })
+      .then((items) => {
+        if (cancelled) return;
+        setQuickPasteHintsById(buildQuickPasteHintsById(items, quickPasteModifier));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("获取数字快速粘贴映射失败", err);
+        setQuickPasteHintsById({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [quickPasteModifier, quickPasteRefreshSeed, quickPasteVersion]);
+
   useAppBootstrap({
     fetchEffectiveTransferPath,
     setDataPath,
@@ -634,11 +714,14 @@ const App = () => {
         const withoutItem = prev.filter(item => item.id !== updatedItem.id);
         return insertHistoryItem(withoutItem, updatedItem);
       });
+      setQuickPasteVersion((prev) => prev + 1);
     },
     onRemoved: (id) => {
       setHistory(prev => prev.filter(item => item.id !== id));
+      setQuickPasteVersion((prev) => prev + 1);
     },
     onChanged: () => {
+      setQuickPasteVersion((prev) => prev + 1);
       fetchHistory(true);
     }
   });
@@ -834,6 +917,7 @@ const App = () => {
     compactMode,
     showSourceAppIcon,
     richTextSnapshotPreview,
+    quickPasteHintsById,
     processingAiId,
     aiEnabled,
     aiOptionsOpenId,

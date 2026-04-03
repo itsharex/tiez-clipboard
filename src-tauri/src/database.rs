@@ -97,12 +97,44 @@ pub fn init_db(path: &str) -> Result<Connection> {
 
 // save_entry removed (migrated to repository)
 
+fn image_ext_from_data_url_header(header: &str) -> Option<&'static str> {
+    let mime = header
+        .strip_prefix("data:")?
+        .split(';')
+        .next()?
+        .trim()
+        .to_ascii_lowercase();
+
+    match mime.as_str() {
+        "image/png" => Some("png"),
+        "image/jpeg" => Some("jpg"),
+        "image/gif" => Some("gif"),
+        "image/webp" => Some("webp"),
+        "image/bmp" => Some("bmp"),
+        "image/svg+xml" => Some("svg"),
+        _ => None,
+    }
+}
+
+fn image_ext_from_bytes(bytes: &[u8]) -> Option<&'static str> {
+    match image::guess_format(bytes).ok()? {
+        image::ImageFormat::Png => Some("png"),
+        image::ImageFormat::Jpeg => Some("jpg"),
+        image::ImageFormat::Gif => Some("gif"),
+        image::ImageFormat::WebP => Some("webp"),
+        image::ImageFormat::Bmp => Some("bmp"),
+        _ => None,
+    }
+}
+
 pub fn save_image_to_file(data_url: &str, data_dir: &std::path::Path) -> Option<String> {
     use std::io::Write;
     let parts: Vec<&str> = data_url.splitn(2, ',').collect();
     if parts.len() < 2 { return None; }
     
+    let ext = image_ext_from_data_url_header(parts[0]).unwrap_or("png");
     let decoded = base64::engine::general_purpose::STANDARD.decode(parts[1]).ok()?;
+    let ext = image_ext_from_bytes(&decoded).unwrap_or(ext);
     
     let attachments_dir = data_dir.join("attachments");
     if !attachments_dir.exists() {
@@ -114,7 +146,7 @@ pub fn save_image_to_file(data_url: &str, data_dir: &std::path::Path) -> Option<
     decoded.hash(&mut hasher);
     let hash = hasher.finish();
     
-    let file_name = format!("img_{:x}.png", hash);
+    let file_name = format!("img_{:x}.{}", hash, ext);
     let file_path = attachments_dir.join(&file_name);
     
     if !file_path.exists() {
@@ -416,6 +448,10 @@ pub fn seed_defaults(conn: &Connection) -> Result<()> {
     // Paste method setting: "shift_insert" (default) or "ctrl_v"
     let _ = conn.execute(
         "INSERT OR IGNORE INTO settings (key, value) VALUES ('app.paste_method', 'shift_insert')",
+        [],
+    );
+    let _ = conn.execute(
+        "INSERT OR IGNORE INTO settings (key, value) VALUES ('app.quick_paste_modifier', 'disabled')",
         [],
     );
 

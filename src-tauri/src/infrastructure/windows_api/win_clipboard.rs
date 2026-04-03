@@ -475,6 +475,16 @@ pub fn get_clipboard_sequence_number() -> u32 {
     unsafe { windows::Win32::System::DataExchange::GetClipboardSequenceNumber() }
 }
 
+pub unsafe fn clear_clipboard() -> Result<(), String> {
+    if OpenClipboard(None).is_err() {
+        return Err("Cannot open clipboard".into());
+    }
+
+    let result = EmptyClipboard().map_err(|e| e.to_string());
+    let _ = CloseClipboard();
+    result.map(|_| ())
+}
+
 /// Get raw bytes from a specific clipboard format by name
 pub unsafe fn get_clipboard_raw_format(format_name: &str) -> Option<Vec<u8>> {
     use windows::Win32::System::DataExchange::RegisterClipboardFormatW;

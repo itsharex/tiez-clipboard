@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { translations } from "../../../locales";
 import AdvancedSettingsGroup from "./groups/AdvancedSettingsGroup";
@@ -79,6 +79,7 @@ const AdvancedSettingsWindow = () => {
         setSequentialHotkey,
         setRichPasteHotkey,
         setSearchHotkey,
+        setQuickPasteModifier,
         setSequentialModeState,
         theme,
         colorMode,
@@ -191,6 +192,7 @@ const AdvancedSettingsWindow = () => {
         setSequentialHotkey,
         setRichPasteHotkey,
         setSearchHotkey,
+        setQuickPasteModifier,
         setSequentialModeState,
         setSoundEnabled,
         setSoundVolume,
@@ -249,18 +251,11 @@ const AdvancedSettingsWindow = () => {
         theme
     });
 
-    const LabelWithHint = useMemo(
-        () => ({ label }: { label: string; hint?: string; hintKey: string }) => (
-            <span className="item-label">{label}</span>
-        ),
-        []
-    );
 
     return (
         <div className="advanced-settings-window-shell">
             <AdvancedSettingsGroup
                 t={t}
-                LabelWithHint={LabelWithHint}
                 cleanupRules={cleanupRules}
                 setCleanupRules={setCleanupRules}
                 appCleanupPolicies={appCleanupPolicies}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DEFAULT_THEME } from "../../../shared/config/themes";
 import type { ClipboardEntry, Locale } from "../../../shared/types";
-import type { AppState, DefaultAppsMap, InstalledAppOption } from "../types";
+import type { AppState, DefaultAppsMap, InstalledAppOption, QuickPasteModifier } from "../types";
 import type { AiProfile, AppCleanupPolicy } from "../../settings/types";
 
 const DEFAULT_AI_KEY = import.meta.env.VITE_AI_DEFAULT_API_KEY ?? "";
@@ -49,6 +49,7 @@ export const useAppState = (): AppState => {
   const [sequentialHotkey, setSequentialHotkey] = useState<string>("Alt+V");
   const [richPasteHotkey, setRichPasteHotkey] = useState<string>("Ctrl+Shift+Z");
   const [searchHotkey, setSearchHotkey] = useState<string>("Alt+F");
+  const [quickPasteModifier, setQuickPasteModifier] = useState<QuickPasteModifier>("disabled");
   const [sequentialMode, setSequentialModeState] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingSequential, setIsRecordingSequential] = useState(false);
@@ -228,6 +229,8 @@ export const useAppState = (): AppState => {
     setRichPasteHotkey,
     searchHotkey,
     setSearchHotkey,
+    quickPasteModifier,
+    setQuickPasteModifier,
     sequentialMode,
     setSequentialModeState,
     isRecording,

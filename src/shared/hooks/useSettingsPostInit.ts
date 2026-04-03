@@ -2,9 +2,23 @@ import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { MutableRefObject } from "react";
 import type { AiProfile, AppCleanupPolicy } from "../../features/settings/types";
+import type { QuickPasteModifier } from "../../features/app/types";
 
 const DEFAULT_AI_KEY = import.meta.env.VITE_AI_DEFAULT_API_KEY ?? "";
 const AI_PRESET_IDS = new Set(["lc_flash_v1", "lc_think_v1", "lc_think_2601_v1"]);
+
+const normalizeQuickPasteModifier = (value: string | undefined): QuickPasteModifier => {
+  switch ((value || "").toLowerCase()) {
+    case "disabled":
+    case "ctrl":
+    case "alt":
+    case "shift":
+    case "win":
+      return value!.toLowerCase() as QuickPasteModifier;
+    default:
+      return "disabled";
+  }
+};
 
 interface UseSettingsPostInitOptions {
   settings: Record<string, string> | null;
@@ -63,6 +77,7 @@ interface UseSettingsPostInitOptions {
   setSequentialHotkey: (val: string) => void;
   setRichPasteHotkey: (val: string) => void;
   setSearchHotkey: (val: string) => void;
+  setQuickPasteModifier: (val: QuickPasteModifier) => void;
   setSequentialModeState: (val: boolean) => void;
   setSoundEnabled: (val: boolean) => void;
   setSoundVolume: (val: number) => void;
@@ -142,6 +157,7 @@ export const useSettingsPostInit = ({
   setSequentialHotkey,
   setRichPasteHotkey,
   setSearchHotkey,
+  setQuickPasteModifier,
   setSequentialModeState,
   setSoundEnabled,
   setSoundVolume,
@@ -310,6 +326,7 @@ export const useSettingsPostInit = ({
     if (settings["app.sequential_hotkey"]) setSequentialHotkey(settings["app.sequential_hotkey"]);
     if (settings["app.rich_paste_hotkey"]) setRichPasteHotkey(settings["app.rich_paste_hotkey"]);
     if (settings["app.search_hotkey"] !== undefined) setSearchHotkey(settings["app.search_hotkey"]);
+    setQuickPasteModifier(normalizeQuickPasteModifier(settings["app.quick_paste_modifier"]));
     if (settings["app.sequential_mode"] === "true") setSequentialModeState(true);
     if (settings["app.sound_enabled"] === "true") setSoundEnabled(true);
     if (settings["app.sound_volume"]) {
@@ -468,6 +485,7 @@ export const useSettingsPostInit = ({
     setSequentialHotkey,
     setRichPasteHotkey,
     setSearchHotkey,
+    setQuickPasteModifier,
     setSequentialModeState,
     setSoundEnabled,
     setSoundVolume,

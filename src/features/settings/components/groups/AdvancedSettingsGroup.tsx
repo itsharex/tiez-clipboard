@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -7,15 +6,9 @@ import type { InstalledAppOption } from "../../../app/types";
 import type { AppCleanupPolicy } from "../../types";
 import { getSourceAppIcon, peekSourceAppIcon } from "../../../../shared/lib/sourceAppIcon";
 
-interface LabelWithHintProps {
-    label: string;
-    hint?: string | ReactNode;
-    hintKey: string;
-}
 
 interface AdvancedSettingsGroupProps {
     t: (key: string) => string;
-    LabelWithHint: ComponentType<LabelWithHintProps>;
     cleanupRules: string;
     setCleanupRules: (val: string) => void;
     appCleanupPolicies: AppCleanupPolicy[];
@@ -70,7 +63,6 @@ const focusEditorWindow = () => {
 
 const AdvancedSettingsGroup = ({
     t,
-    LabelWithHint,
     cleanupRules,
     setCleanupRules,
     appCleanupPolicies,

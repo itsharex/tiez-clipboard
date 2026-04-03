@@ -473,7 +473,29 @@ fn extract_plain_text_from_htmlish(text: &str) -> String {
     }
 }
 
+fn looks_like_obsidian_callout_markdown(text: &str) -> bool {
+    static OBSIDIAN_CALLOUT_RE: OnceLock<Regex> = OnceLock::new();
+
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let first_non_empty = normalized
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("");
+
+    OBSIDIAN_CALLOUT_RE
+        .get_or_init(|| {
+            Regex::new(r"(?i)^>\s*\[\![a-z0-9_-]+\](?:[+-])?(?:\s+.+)?$").unwrap()
+        })
+        .is_match(first_non_empty)
+}
+
 pub fn derive_rich_text_content(content: &str, html_content: Option<&str>) -> String {
+    let sanitized_plain = sanitize_rich_text_plain_text(content);
+    if looks_like_obsidian_callout_markdown(&sanitized_plain) {
+        return sanitized_plain;
+    }
+
     let html_text = html_content
         .map(extract_plain_text_from_htmlish)
         .filter(|text| !text.is_empty());
@@ -488,7 +510,7 @@ pub fn derive_rich_text_content(content: &str, html_content: Option<&str>) -> St
         }
     }
 
-    sanitize_rich_text_plain_text(content)
+    sanitized_plain
 }
 
 pub fn build_entry_preview(content_type: &str, content: &str, html_content: Option<&str>) -> String {
@@ -717,6 +739,16 @@ mod tests {
         let preview = build_entry_preview("rich_text", html, Some(html));
 
         assert_eq!(preview, "顶顶顶顶");
+    }
+
+    #[test]
+    fn rich_text_content_preserves_obsidian_callout_markdown() {
+        let text = "> [!note]- Important\n> Keep the markdown callout syntax";
+        let html = "<blockquote><p>Important</p><p>Keep the markdown callout syntax</p></blockquote>";
+
+        let content = derive_rich_text_content(text, Some(html));
+
+        assert_eq!(content, text);
     }
 
     #[test]
