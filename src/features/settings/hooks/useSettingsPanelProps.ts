@@ -224,7 +224,8 @@ export const useSettingsPanelProps = ({
     aiAssignedProfileMouthpiece,
     setAiAssignedProfileMouthpiece,
     aiAssignedProfileTranslate,
-    setAiAssignedProfileTranslate
+    setAiAssignedProfileTranslate,
+    setSettingsSubpage
   } = state;
 
   return {
@@ -234,6 +235,7 @@ export const useSettingsPanelProps = ({
     colorMode,
     collapsedGroups,
     settingsSubpage,
+    setSettingsSubpage,
     autoStart,
     silentStart,
     persistent,

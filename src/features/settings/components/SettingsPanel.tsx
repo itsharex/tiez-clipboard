@@ -45,6 +45,7 @@ interface SettingsPanelProps {
     // State
     collapsedGroups: Record<string, boolean>;
     settingsSubpage: SettingsSubpage;
+    setSettingsSubpage: (val: SettingsSubpage) => void;
     autoStart: boolean;
     silentStart: boolean;
     persistent: boolean;
@@ -250,7 +251,7 @@ interface SettingsPanelProps {
 const SettingsPanel = (props: SettingsPanelProps) => {
     const {
         t, theme, language, colorMode,
-        collapsedGroups, settingsSubpage, autoStart, silentStart, persistent, persistentLimitEnabled, persistentLimit, deduplicate, captureFiles, captureRichText, richTextSnapshotPreview, deleteAfterPaste, moveToTopAfterPaste,
+        collapsedGroups, settingsSubpage, setSettingsSubpage, autoStart, silentStart, persistent, persistentLimitEnabled, persistentLimit, deduplicate, captureFiles, captureRichText, richTextSnapshotPreview, deleteAfterPaste, moveToTopAfterPaste,
         sequentialMode, sequentialHotkey, isRecordingSequential,
         richPasteHotkey, isRecordingRich, searchHotkey, isRecordingSearch, quickPasteModifier,
         privacyProtection, privacyProtectionKinds, setPrivacyProtectionKinds, privacyProtectionCustomRules, setPrivacyProtectionCustomRules, cleanupRules, setCleanupRules, appCleanupPolicies, setAppCleanupPolicies, registryWinVEnabled, setRegistryWinVEnabled, showSearchBox, setShowSearchBox, scrollTopButtonEnabled, setScrollTopButtonEnabled, arrowKeySelection, setArrowKeySelection,
@@ -458,45 +459,14 @@ const SettingsPanel = (props: SettingsPanelProps) => {
     }, []);
 
     const openAdvancedSettingsWindow = useCallback(async () => {
-        try {
-            const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-            const existing = await WebviewWindow.getByLabel("advanced-settings");
-
-            if (existing) {
-                await existing.show().catch(console.error);
-                await existing.setFocus().catch(console.error);
-                return;
-            }
-
-            const win = new WebviewWindow("advanced-settings", {
-                url: "index.html?window=advanced-settings",
-                title: t("advanced_settings"),
-                width: 1120,
-                height: 760,
-                minWidth: 920,
-                minHeight: 620,
-                center: true,
-                resizable: true,
-                decorations: true,
-                transparent: false,
-                skipTaskbar: false,
-                alwaysOnTop: false,
-                focus: true
-            });
-
-            win.once("tauri://error", (event) => {
-                console.error("Failed to open advanced settings window:", event.payload);
-            });
-        } catch (error) {
-            console.error("Failed to open advanced settings window:", error);
-        }
-    }, [t]);
+        setSettingsSubpage("advanced");
+    }, [setSettingsSubpage]);
 
     return (
         <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '4px', height: '100%', flex: 1 }}
         >
             {settingsSubpage === "advanced" ? (
                 <>

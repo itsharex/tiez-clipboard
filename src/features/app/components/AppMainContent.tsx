@@ -233,12 +233,15 @@ const AppMainContent = ({
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="settings-view"
+        className={`settings-view ${settingsPanelProps.settingsSubpage === "advanced" ? "advanced-view-shell" : ""}`}
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "12px",
-          maxWidth: settingsPanelProps.settingsSubpage === "advanced" ? "min(1120px, 100%)" : undefined
+          gap: settingsPanelProps.settingsSubpage === "advanced" ? "0" : "12px",
+          height: "100%",
+          maxHeight: "100%",
+          width: "100%",
+          maxWidth: settingsPanelProps.settingsSubpage === "advanced" ? "none" : undefined
         }}
       >
         <SettingsPanel {...settingsPanelProps} />

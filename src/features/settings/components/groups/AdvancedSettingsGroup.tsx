@@ -4,7 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import type { InstalledAppOption } from "../../../app/types";
 import type { AppCleanupPolicy } from "../../types";
-import { getSourceAppIcon, peekSourceAppIcon } from "../../../../shared/lib/sourceAppIcon";
+
 
 
 interface AdvancedSettingsGroupProps {
@@ -19,6 +19,7 @@ interface AdvancedSettingsGroupProps {
 interface EditableRule {
     match: string;
     replace: string;
+    label?: string;
 }
 
 interface SourceTarget {
@@ -36,24 +37,44 @@ const DEFAULT_POLICY_CONTENT_TYPES = ["text", "code", "url", "rich_text"];
 const createPolicyId = () =>
     `policy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-const parseRules = (rawRules: string): EditableRule[] =>
-    rawRules
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0 && !line.startsWith("#"))
-        .map((line) => {
-            const [matchPart, replacePart = ""] = line.split(/=>/, 2);
-            return {
-                match: matchPart.trim(),
-                replace: replacePart.trim()
-            };
+const parseRules = (rawRules: string): EditableRule[] => {
+    const lines = rawRules.split(/\r?\n/).map((l) => l.trim());
+    const rules: EditableRule[] = [];
+    let currentLabel: string | null = null;
+
+    for (const line of lines) {
+        if (line.length === 0) continue;
+        if (line.startsWith("#")) {
+            const labelMatch = line.match(/^#\s*label:\s*(.*)$/i);
+            if (labelMatch) {
+                currentLabel = labelMatch[1].trim();
+            }
+            continue;
+        }
+
+        const [matchPart, replacePart = ""] = line.split(/=>/, 2);
+        rules.push({
+            match: matchPart.trim(),
+            replace: replacePart.trim(),
+            label: currentLabel ?? undefined
         });
+        currentLabel = null;
+    }
+    return rules;
+};
 
 const serializeRules = (rules: EditableRule[]): string =>
     rules
         .filter((rule) => rule.match.trim().length > 0)
-        .map((rule) => `${rule.match.trim()} => ${rule.replace}`)
-        .join("\n");
+        .map((rule) => {
+            const lines = [];
+            if (rule.label?.trim()) {
+                lines.push(`# label: ${rule.label.trim()}`);
+            }
+            lines.push(`${rule.match.trim()} => ${rule.replace}`);
+            return lines.join("\n");
+        })
+        .join("\n\n");
 
 const focusEditorWindow = () => {
     getCurrentWindow()
@@ -73,9 +94,10 @@ const AdvancedSettingsGroup = ({
     const [selectedSourceId, setSelectedSourceId] = useState("global");
     const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(0);
     const [draftRules, setDraftRules] = useState<EditableRule[]>(parseRules(cleanupRules));
-    const [sidebarWidth, setSidebarWidth] = useState(308);
+    const [sidebarWidth, setSidebarWidth] = useState(120);
+    const [sidebarHeight, setSidebarHeight] = useState(180);
     const [isResizing, setIsResizing] = useState(false);
-    const [appIcons, setAppIcons] = useState<Record<string, string | null>>({});
+    const [isStacked, setIsStacked] = useState(false);
     const workbenchRef = useRef<HTMLElement | null>(null);
 
     const configuredAppPolicies = useMemo(
@@ -152,27 +174,19 @@ const AdvancedSettingsGroup = ({
         setExpandedRuleIndex(nextRules.length > 0 ? 0 : null);
     }, [selectedTarget?.id]);
 
+    // App icons fetching removed for minimalist style
+
     useEffect(() => {
-        const paths = new Set<string>();
-        sourceTargets.forEach((target) => {
-            if (target.appPath) paths.add(target.appPath);
-        });
-        searchResults.forEach((app) => {
-            if (app.value) paths.add(app.value);
-        });
+        const mediaQuery = window.matchMedia("(max-width: 340px)");
+        const updateLayoutMode = () => {
+            setIsStacked(mediaQuery.matches);
+        };
 
-        paths.forEach((path) => {
-            const cached = peekSourceAppIcon(path);
-            if (cached !== undefined) {
-                setAppIcons((prev) => (prev[path] === cached ? prev : { ...prev, [path]: cached ?? null }));
-                return;
-            }
+        updateLayoutMode();
+        mediaQuery.addEventListener("change", updateLayoutMode);
 
-            getSourceAppIcon(path).then((icon) => {
-                setAppIcons((prev) => (prev[path] === icon ? prev : { ...prev, [path]: icon }));
-            });
-        });
-    }, [searchResults, sourceTargets]);
+        return () => mediaQuery.removeEventListener("change", updateLayoutMode);
+    }, []);
 
     useEffect(() => {
         if (!isResizing) return;
@@ -180,7 +194,14 @@ const AdvancedSettingsGroup = ({
         const handleMouseMove = (event: MouseEvent) => {
             const bounds = workbenchRef.current?.getBoundingClientRect();
             if (!bounds) return;
-            const nextWidth = Math.min(Math.max(event.clientX - bounds.left, 220), 420);
+            if (isStacked) {
+                const maxHeight = Math.max(140, bounds.height - 220);
+                const nextHeight = Math.min(Math.max(event.clientY - bounds.top, 120), maxHeight);
+                setSidebarHeight(nextHeight);
+                return;
+            }
+
+            const nextWidth = Math.min(Math.max(event.clientX - bounds.left, 80), 280);
             setSidebarWidth(nextWidth);
         };
 
@@ -190,7 +211,7 @@ const AdvancedSettingsGroup = ({
             document.body.style.userSelect = "";
         };
 
-        document.body.style.cursor = "col-resize";
+        document.body.style.cursor = isStacked ? "row-resize" : "col-resize";
         document.body.style.userSelect = "none";
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
@@ -201,7 +222,24 @@ const AdvancedSettingsGroup = ({
             document.body.style.cursor = "";
             document.body.style.userSelect = "";
         };
-    }, [isResizing]);
+    }, [isResizing, isStacked]);
+
+    const handleDeleteTarget = (event: React.MouseEvent, target: SourceTarget) => {
+        event.stopPropagation();
+        if (target.kind === "global") return;
+
+        // Filter out the app policy. Since rules are inside the policy, they are deleted automatically.
+        const nextPolicies = appCleanupPolicies.filter(p => (
+            p.id !== target.policyId && (p.appPath !== target.appPath || !target.appPath)
+        ));
+        
+        persistAppPolicies(nextPolicies);
+        
+        // If the deleted target was selected, switch back to global
+        if (selectedSourceId === target.id) {
+            setSelectedSourceId("global");
+        }
+    };
 
     const persistAppPolicies = (nextPolicies: AppCleanupPolicy[]) => {
         setAppCleanupPolicies(nextPolicies);
@@ -295,15 +333,15 @@ const AdvancedSettingsGroup = ({
 
     return (
         <div className="settings-subpage advanced-settings-page">
-            <div className="settings-subpage-header advanced-settings-header">
-                <h3 style={{ margin: 0 }}>{t("advanced_settings")}</h3>
-                <div className="settings-subpage-note">{t("advanced_settings_entry_desc")}</div>
-            </div>
+            {/* Header is handled by AppHeader */}
 
             <section
                 ref={workbenchRef}
-                className="advanced-workbench"
-                style={{ ["--advanced-sidebar-width" as string]: `${sidebarWidth}px` }}
+                className={`advanced-workbench ${isStacked ? "stacked-layout" : ""}`}
+                style={{
+                    ["--advanced-sidebar-width" as string]: `${sidebarWidth}px`,
+                    ["--advanced-sidebar-height" as string]: `${sidebarHeight}px`
+                }}
             >
                 <aside className="advanced-sidebar">
                     <div className="advanced-sidebar-search">
@@ -324,17 +362,6 @@ const AdvancedSettingsGroup = ({
                                         onClick={() => handleAddApp(app)}
                                     >
                                         <span className="advanced-search-result-main">
-                                            {appIcons[app.value] ? (
-                                                <img
-                                                    src={appIcons[app.value] ?? ""}
-                                                    alt={`${app.label} icon`}
-                                                    className="advanced-app-icon"
-                                                />
-                                            ) : (
-                                                <span className="advanced-target-icon advanced-target-icon-fallback">
-                                                    {app.label[0] ?? "?"}
-                                                </span>
-                                            )}
                                             <span className="advanced-search-result-name">{app.label}</span>
                                         </span>
                                         <span className="advanced-search-result-action">
@@ -354,17 +381,6 @@ const AdvancedSettingsGroup = ({
                                 className={`advanced-target-item ${selectedTarget?.id === target.id ? "active" : ""}`}
                                 onClick={() => setSelectedSourceId(target.id)}
                             >
-                                {target.kind === "app" && target.appPath && appIcons[target.appPath] ? (
-                                    <img
-                                        src={appIcons[target.appPath] ?? ""}
-                                        alt={`${target.label} icon`}
-                                        className="advanced-app-icon advanced-target-app-icon"
-                                    />
-                                ) : (
-                                    <span className={`advanced-target-icon ${target.kind === "global" ? "global" : ""}`}>
-                                        {target.kind === "global" ? "ALL" : (target.label[0] ?? "?")}
-                                    </span>
-                                )}
                                 <span className="advanced-target-meta">
                                     <span className="advanced-target-name">{target.label}</span>
                                     <span className="advanced-target-sub">
@@ -373,13 +389,24 @@ const AdvancedSettingsGroup = ({
                                             : t("advanced_no_rules")}
                                     </span>
                                 </span>
+
+                                {target.kind !== "global" && (
+                                    <button
+                                        type="button"
+                                        className="advanced-target-delete"
+                                        onClick={(e) => handleDeleteTarget(e, target)}
+                                        title={t("delete")}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
                             </button>
                         ))}
                     </div>
                 </aside>
 
                 <div
-                    className={`advanced-divider ${isResizing ? "active" : ""}`}
+                    className={`advanced-divider ${isResizing ? "active" : ""} ${isStacked ? "stacked" : ""}`}
                     onMouseDown={() => setIsResizing(true)}
                 >
                     <span className="advanced-divider-handle" />
@@ -426,13 +453,23 @@ const AdvancedSettingsGroup = ({
                                         onClick={() => setExpandedRuleIndex(expanded ? null : index)}
                                     >
                                         <span className="advanced-rule-title">
-                                            {t("advanced_rule_label")} {index + 1}
+                                            {rule.label?.trim() || `${t("advanced_rule_label")} ${index + 1}`}
                                         </span>
                                         {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                     </button>
 
                                     {expanded && (
                                         <div className="advanced-rule-body">
+                                            <div className="advanced-rule-field">
+                                                <label>{t("advanced_rule_label_name")}</label>
+                                                <input
+                                                    type="text"
+                                                    className="search-input advanced-rule-input"
+                                                    value={rule.label ?? ""}
+                                                    placeholder={`${t("advanced_rule_label")} ${index + 1}`}
+                                                    onChange={(e) => updateRule(index, { label: e.target.value })}
+                                                />
+                                            </div>
                                             <div className="advanced-rule-field">
                                                 <label>{t("advanced_match_label")}</label>
                                                 <textarea
