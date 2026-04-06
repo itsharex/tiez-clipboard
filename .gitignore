@@ -34,3 +34,9 @@ src-tauri/signer.key.pub
 Thumbs.db
 .vscode/
 docs/CLOUD-SYNC-IMPLEMENTATION.md
+
+# Junk / Logs
+artifacts/
+conflicts.txt
+git_graph.txt
+git_log_out.txt

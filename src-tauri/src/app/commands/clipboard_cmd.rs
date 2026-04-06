@@ -70,6 +70,7 @@ pub fn toggle_clipboard_pin(
             .toggle_pin_with_conn(&conn, real_id, is_pinned)
             .map_err(AppError::from)?;
     }
+    drop(conn);
     let _ = app_handle.emit("clipboard-changed", ());
     crate::services::cloud_sync::request_cloud_sync(app_handle);
     Ok(real_id)
