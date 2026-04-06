@@ -19,6 +19,7 @@ interface TagInfo {
 }
 
 export default function TagManager({ t, theme }: TagManagerProps) {
+    const TAG_MANAGER_VIEW_MODE_KEY = "tiez_tag_manager_view_mode";
     const [tags, setTags] = useState<TagInfo[]>([]);
     const [tagSearch, setTagSearch] = useState('');
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -27,7 +28,14 @@ export default function TagManager({ t, theme }: TagManagerProps) {
     const [editingTag, setEditingTag] = useState<string | null>(null);
     const [newTagName, setNewTagName] = useState('');
     const [loading, setLoading] = useState(false);
-    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
+        try {
+            const saved = window.localStorage.getItem(TAG_MANAGER_VIEW_MODE_KEY);
+            return saved === 'list' ? 'list' : 'grid';
+        } catch {
+            return 'grid';
+        }
+    });
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState<{ show: boolean, tagName: string | null }>({ show: false, tagName: null });
     const [itemDeleteConfirmation, setItemDeleteConfirmation] = useState<{ show: boolean, id: number | null }>({ show: false, id: null });
@@ -36,9 +44,22 @@ export default function TagManager({ t, theme }: TagManagerProps) {
     const [isCreatingItem, setIsCreatingItem] = useState(false);
     const [editingItem, setEditingItem] = useState<{ id: number, content: string } | null>(null);
     const [newItemContent, setNewItemContent] = useState('');
+    const [sidebarWidth, setSidebarWidth] = useState(130);
+    const [sidebarHeight, setSidebarHeight] = useState(180);
+    const [isResizing, setIsResizing] = useState(false);
+    const [isStacked, setIsStacked] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const selectedTagRef = useRef<string | null>(null);
     useEffect(() => { selectedTagRef.current = selectedTag; }, [selectedTag]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(TAG_MANAGER_VIEW_MODE_KEY, viewMode);
+        } catch {
+            // Ignore storage write failures and keep UI functional.
+        }
+    }, [viewMode]);
 
     useEffect(() => {
         let unlisteners: (() => void)[] = [];
@@ -58,6 +79,54 @@ export default function TagManager({ t, theme }: TagManagerProps) {
     }, [isDeleting]);
 
     useEffect(() => { fetchTags(); }, []);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(max-width: 340px)");
+        const updateLayoutMode = () => {
+            setIsStacked(mediaQuery.matches);
+        };
+
+        updateLayoutMode();
+        mediaQuery.addEventListener("change", updateLayoutMode);
+
+        return () => mediaQuery.removeEventListener("change", updateLayoutMode);
+    }, []);
+
+    useEffect(() => {
+        if (!isResizing) return;
+
+        const handleMouseMove = (event: MouseEvent) => {
+            const bounds = containerRef.current?.getBoundingClientRect();
+            if (!bounds) return;
+            if (isStacked) {
+                const maxHeight = Math.max(140, bounds.height - 180);
+                const nextHeight = Math.min(Math.max(event.clientY - bounds.top, 120), maxHeight);
+                setSidebarHeight(nextHeight);
+                return;
+            }
+
+            const nextWidth = Math.min(Math.max(event.clientX - bounds.left, 80), 320);
+            setSidebarWidth(nextWidth);
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+
+        document.body.style.cursor = isStacked ? "row-resize" : "col-resize";
+        document.body.style.userSelect = "none";
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+    }, [isResizing, isStacked]);
 
     const fetchTags = async () => {
         try {
@@ -193,7 +262,12 @@ export default function TagManager({ t, theme }: TagManagerProps) {
 
     return (
         <div
-            className={`themed-tag-manager theme-${theme} ${isCollapsed ? 'sidebar-collapsed' : ''}`}
+            ref={containerRef}
+            className={`themed-tag-manager theme-${theme} ${isCollapsed ? 'sidebar-collapsed' : ''} ${isStacked ? 'stacked-layout' : ''}`}
+            style={{ 
+                ["--tm-sidebar-width" as any]: isCollapsed ? '48px' : `${sidebarWidth}px`,
+                ["--tm-sidebar-height" as any]: `${sidebarHeight}px`
+            } as any}
             onMouseDown={() => invoke('activate_window_focus').catch(console.error)}
         >
             {/* Sidebar with CRUD support */}
@@ -297,19 +371,19 @@ export default function TagManager({ t, theme }: TagManagerProps) {
                                 <>
                                     <span className="tag-name">{tag.name}</span>
                                     <div className="tag-hover-actions">
-                                        <span title="重命名" onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (tag.name === 'sensitive' || tag.name === '密码') return;
-                                            setEditingTag(tag.name);
-                                            setNewTagName(tag.name);
-                                        }} style={{
-                                            opacity: (tag.name === 'sensitive' || tag.name === '密码') ? 0.2 : 1,
-                                            cursor: (tag.name === 'sensitive' || tag.name === '密码') ? 'not-allowed' : 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center'
-                                        }}>
-                                            <Edit2 size={12} />
-                                        </span>
+                                        {(tag.name !== 'sensitive' && tag.name !== '密码') && (
+                                            <span title="重命名" onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingTag(tag.name);
+                                                setNewTagName(tag.name);
+                                            }} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                cursor: 'pointer'
+                                            }}>
+                                                <Edit2 size={12} />
+                                            </span>
+                                        )}
                                         {(tag.name !== 'sensitive' && tag.name !== '密码') && (
                                             <span title="删除" onClick={(e) => {
                                                 e.stopPropagation();
@@ -338,6 +412,18 @@ export default function TagManager({ t, theme }: TagManagerProps) {
                     )}
                 </div>
             </div>
+
+            {!isCollapsed && (
+                <div 
+                    className={`tag-divider ${isResizing ? 'active' : ''} ${isStacked ? 'stacked' : ''}`}
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        setIsResizing(true);
+                    }}
+                >
+                    <div className="tag-divider-handle" />
+                </div>
+            )}
 
             {/* Right Main Area */}
             <div className="tag-content">
@@ -565,28 +651,29 @@ export default function TagManager({ t, theme }: TagManagerProps) {
             )}
             <style>{`
                 .themed-tag-manager {
-                    display: flex;
+                    display: grid;
+                    grid-template-columns: var(--tag-sidebar-width, 130px) auto 1fr;
                     height: 100%;
                     background: var(--bg-content);
                     font-family: var(--font-main, ui-monospace, monospace);
                     color: var(--text-primary);
-                    gap: 16px;
-                    padding: 16px;
+                    gap: 0;
+                    padding: 0;
                 }
 
                 /* Sidebar */
                 .tag-sidebar {
-                    width: 220px;
+                    width: var(--tag-sidebar-width, 130px);
                     flex-shrink: 0;
                     display: flex;
                     flex-direction: column;
                     background: var(--bg-panel);
-                    border-radius: var(--radius-lg);
-                    box-shadow: 0 2px 12px var(--shadow);
+                    border-radius: 0;
+                    box-shadow: none;
                     overflow: hidden;
                     border: var(--panel-border);
                 }
-                .sidebar-collapsed .tag-sidebar { width: 56px; }
+                .sidebar-collapsed .tag-sidebar { width: 48px; }
                 
                 .sidebar-header {
                     padding: 16px 20px;
@@ -1578,6 +1665,52 @@ export default function TagManager({ t, theme }: TagManagerProps) {
                 
                 .custom-scrollbar::-webkit-scrollbar { width: var(--scrollbar-size-thin); }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-color); border-radius: var(--scrollbar-radius); }
+
+                @media (max-width: 320px) {
+                    .themed-tag-manager {
+                        flex-direction: column;
+                        padding: 8px;
+                        gap: 12px;
+                        overflow-y: auto;
+                    }
+                    .tag-sidebar {
+                        width: 100% !important;
+                        height: 240px;
+                        flex-shrink: 0;
+                    }
+                    .tag-content {
+                        min-height: 300px;
+                    }
+                }
+
+                .tag-divider {
+                    width: 4px;
+                    height: 100%;
+                    cursor: col-resize;
+                    margin: 0;
+                    background: transparent;
+                    transition: background 0.2s;
+                    position: relative;
+                    z-index: 10;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .tag-divider:hover, .tag-divider.active {
+                    background: rgba(var(--accent-color-rgb), 0.1);
+                }
+                .tag-divider-handle {
+                    width: 1px;
+                    height: 32px;
+                    background: var(--accent-color);
+                    opacity: 0.22;
+                    border-radius: 2px;
+                    transition: opacity 0.2s, height 0.2s;
+                }
+                .tag-divider:hover .tag-divider-handle, .tag-divider.active .tag-divider-handle {
+                    opacity: 0.6;
+                    height: 48px;
+                }
             `}</style>
         </div >
     );

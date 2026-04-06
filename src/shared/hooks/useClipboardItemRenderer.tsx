@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { Dispatch, SetStateAction, MouseEvent, ReactNode } from "react";
 import type { DragControls } from "framer-motion";
 import ClipboardItem from "../../features/clipboard/components/ClipboardItem";
+import type { QuickPasteHint } from "../../features/clipboard/types";
 import type { ClipboardEntry } from "../types";
 import type { Locale } from "../types";
 
@@ -20,9 +21,13 @@ interface UseClipboardItemRendererOptions {
   compactMode: boolean;
   showSourceAppIcon: boolean;
   richTextSnapshotPreview: boolean;
+<<<<<<< HEAD
   sensitiveMaskPrefixVisible: number;
   sensitiveMaskSuffixVisible: number;
   sensitiveMaskEmailDomain: boolean;
+=======
+  quickPasteHintsById: Record<number, QuickPasteHint>;
+>>>>>>> master
   processingAiId: number | null;
   aiEnabled: boolean;
   aiOptionsOpenId: number | null;
@@ -66,9 +71,13 @@ export const useClipboardItemRenderer = ({
   compactMode,
   showSourceAppIcon,
   richTextSnapshotPreview,
+<<<<<<< HEAD
   sensitiveMaskPrefixVisible,
   sensitiveMaskSuffixVisible,
   sensitiveMaskEmailDomain,
+=======
+  quickPasteHintsById,
+>>>>>>> master
   processingAiId,
   aiEnabled,
   aiOptionsOpenId,
@@ -109,6 +118,7 @@ export const useClipboardItemRenderer = ({
           theme={theme}
           language={language}
           t={t}
+          quickPasteHint={quickPasteHintsById[item.id]}
           compactMode={compactMode}
           showSourceAppIcon={showSourceAppIcon}
           richTextSnapshotPreview={richTextSnapshotPreview}
@@ -189,9 +199,13 @@ export const useClipboardItemRenderer = ({
       compactMode,
       showSourceAppIcon,
       richTextSnapshotPreview,
+<<<<<<< HEAD
       sensitiveMaskPrefixVisible,
       sensitiveMaskSuffixVisible,
       sensitiveMaskEmailDomain,
+=======
+      quickPasteHintsById,
+>>>>>>> master
       processingAiId,
       aiEnabled,
       aiOptionsOpenId,

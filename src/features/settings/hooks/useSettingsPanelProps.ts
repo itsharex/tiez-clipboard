@@ -50,6 +50,7 @@ export const useSettingsPanelProps = ({
 }: UseSettingsPanelPropsOptions): SettingsPanelProps => {
   const {
     collapsedGroups,
+    settingsSubpage,
     autoStart,
     silentStart,
     persistent,
@@ -68,17 +69,25 @@ export const useSettingsPanelProps = ({
     isRecordingRich,
     searchHotkey,
     isRecordingSearch,
+    quickPasteModifier,
     privacyProtection,
     privacyProtectionKinds,
     setPrivacyProtectionKinds,
     privacyProtectionCustomRules,
     setPrivacyProtectionCustomRules,
+<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     setSensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     setSensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
     setSensitiveMaskEmailDomain,
+=======
+    cleanupRules,
+    setCleanupRules,
+    appCleanupPolicies,
+    setAppCleanupPolicies,
+>>>>>>> master
     hotkey,
     showHotkeyHint,
     winClipboardDisabled,
@@ -161,6 +170,7 @@ export const useSettingsPanelProps = ({
     setIsRecordingSequential,
     setIsRecordingRich,
     setIsRecordingSearch,
+    setQuickPasteModifier,
     setPrivacyProtection,
     setShowHotkeyHint,
     setIsRecording,
@@ -223,7 +233,8 @@ export const useSettingsPanelProps = ({
     aiAssignedProfileMouthpiece,
     setAiAssignedProfileMouthpiece,
     aiAssignedProfileTranslate,
-    setAiAssignedProfileTranslate
+    setAiAssignedProfileTranslate,
+    setSettingsSubpage
   } = state;
 
   return {
@@ -232,6 +243,8 @@ export const useSettingsPanelProps = ({
     language,
     colorMode,
     collapsedGroups,
+    settingsSubpage,
+    setSettingsSubpage,
     autoStart,
     silentStart,
     persistent,
@@ -250,17 +263,25 @@ export const useSettingsPanelProps = ({
     isRecordingRich,
     searchHotkey,
     isRecordingSearch,
+    quickPasteModifier,
     privacyProtection,
     privacyProtectionKinds,
     setPrivacyProtectionKinds,
     privacyProtectionCustomRules,
     setPrivacyProtectionCustomRules,
+<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     setSensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     setSensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
     setSensitiveMaskEmailDomain,
+=======
+    cleanupRules,
+    setCleanupRules,
+    appCleanupPolicies,
+    setAppCleanupPolicies,
+>>>>>>> master
     hotkey,
     showHotkeyHint,
     winClipboardDisabled,
@@ -348,6 +369,7 @@ export const useSettingsPanelProps = ({
     updateRichPasteHotkey,
     setIsRecordingSearch,
     updateSearchHotkey,
+    setQuickPasteModifier,
     setPrivacyProtection,
     setShowHotkeyHint,
     setIsRecording,

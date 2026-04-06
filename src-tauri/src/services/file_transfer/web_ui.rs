@@ -57,7 +57,7 @@ fn file_transfer_theme_variants(theme: &str) -> (&'static str, &'static str, &'s
                     linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 243, 188, 0.22));
                 background-size: 15px 15px, 100% 100%;
             }
-            "#
+            "#,
         ),
         "paper" => (
             r#"
@@ -114,7 +114,7 @@ fn file_transfer_theme_variants(theme: &str) -> (&'static str, &'static str, &'s
                 background-image: linear-gradient(rgba(139, 90, 43, 0.06) 1px, transparent 1px);
                 background-size: 100% 1.65em;
             }
-            "#
+            "#,
         ),
         "mica" => (
             r#"
@@ -166,7 +166,7 @@ fn file_transfer_theme_variants(theme: &str) -> (&'static str, &'static str, &'s
             --send-button-border: 1px solid rgba(79, 125, 255, 0.26);
             --send-button-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
             "#,
-            ""
+            "",
         ),
         "acrylic" => (
             r#"
@@ -218,7 +218,7 @@ fn file_transfer_theme_variants(theme: &str) -> (&'static str, &'static str, &'s
             --send-button-border: 1px solid rgba(79, 125, 255, 0.26);
             --send-button-shadow: 0 14px 26px rgba(0, 0, 0, 0.22);
             "#,
-            ""
+            "",
         ),
         _ => (
             r#"
@@ -274,7 +274,7 @@ fn file_transfer_theme_variants(theme: &str) -> (&'static str, &'static str, &'s
             --send-button-border: 2px solid #000000;
             --send-button-shadow: none;
             "#,
-            ""
+            "",
         ),
     }
 }
@@ -287,9 +287,7 @@ fn file_transfer_theme_css(theme: &str, color_mode: &str) -> String {
         _ => String::new(),
     };
 
-    format!(
-        ":root {{{light}}}\n{dark_css}\n{extra}"
-    )
+    format!(":root {{{light}}}\n{dark_css}\n{extra}")
 }
 
 pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String {
@@ -300,7 +298,8 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
         _ => "",
     };
 
-    format!(r#"
+    format!(
+        r#"
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -1072,5 +1071,8 @@ pub fn render_index(theme: &str, color_mode: &str, logo_base64: &str) -> String 
     </script>
 </body>
 </html>
-    "#, theme = theme, logo_base64 = logo_base64)
+    "#,
+        theme = theme,
+        logo_base64 = logo_base64
+    )
 }

@@ -50,12 +50,17 @@ export const getTagColor = (tag: string, theme: string) => {
   const hue = Math.abs((hash * 137.508 + (hash >> 3)) % 360);
 
   if (theme === "retro") {
-    // Retro: Slightly desaturated, lower lightness for mechanical look
-    return `hsl(${hue}, 60%, 40%)`;
+    // Retro: Keep mechanical saturation, but avoid overly dark chips.
+    return `hsl(${hue}, 58%, 48%)`;
   } else {
-    // Modern: Vibrant for Mica/Acrylic
-    return `hsl(${hue}, 80%, 55%)`;
+    // Modern: Slightly lighter to keep tag chips readable.
+    return `hsl(${hue}, 76%, 62%)`;
   }
+};
+
+export const getTagTextColor = (backgroundColor: string) => {
+  void backgroundColor;
+  return "#ffffff";
 };
 
 export const getConciseTime = (timestamp: number, language: Locale) => {

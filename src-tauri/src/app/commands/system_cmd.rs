@@ -1,9 +1,9 @@
-use tauri::{AppHandle, Manager, State};
+use crate::app_state::AppDataDir;
+use crate::database::ENCRYPT_PREFIX;
+use crate::error::{AppError, AppResult};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json;
-use crate::app_state::AppDataDir;
-use crate::error::{AppResult, AppError};
-use crate::database::ENCRYPT_PREFIX;
+use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]
 pub fn get_data_path(state: State<'_, AppDataDir>) -> AppResult<String> {
@@ -25,7 +25,7 @@ pub fn open_folder(path: String) -> AppResult<()> {
 pub fn open_data_folder(state: State<'_, AppDataDir>) -> AppResult<()> {
     let path = state.0.lock().unwrap();
     let path_str = path.to_string_lossy().to_string();
-    
+
     use std::process::Command;
     Command::new("explorer")
         .arg(path_str)
@@ -59,15 +59,23 @@ pub fn open_file_location(file_path: String) -> AppResult<()> {
 pub fn toggle_autostart(enabled: bool) -> AppResult<()> {
     use winreg::enums::*;
     use winreg::RegKey;
-    
+
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let key = hkcu.open_subkey_with_flags("Software\\Microsoft\\Windows\\CurrentVersion\\Run", KEY_WRITE | KEY_READ)
+    let key = hkcu
+        .open_subkey_with_flags(
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            KEY_WRITE | KEY_READ,
+        )
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let app_path = std::env::current_exe().map_err(|e| AppError::Internal(e.to_string()))?.to_string_lossy().to_string();
+    let app_path = std::env::current_exe()
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .to_string_lossy()
+        .to_string();
     let cmd = format!("\"{}\" --minimized", app_path);
 
     if enabled {
-        key.set_value("TieZ", &cmd).map_err(|e| AppError::Internal(e.to_string()))?;
+        key.set_value("TieZ", &cmd)
+            .map_err(|e| AppError::Internal(e.to_string()))?;
     } else {
         let _ = key.delete_value("TieZ");
         let _ = key.delete_value("tie-z");
@@ -80,7 +88,8 @@ pub fn is_autostart_enabled() -> AppResult<bool> {
     use winreg::enums::*;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let key = hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
+    let key = hkcu
+        .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
         .map_err(|e| AppError::Internal(e.to_string()))?;
     Ok(key.get_value::<String, _>("TieZ").is_ok() || key.get_value::<String, _>("tie-z").is_ok())
 }
@@ -97,19 +106,30 @@ pub fn set_windows_clipboard_history(enabled: bool) -> AppResult<()> {
         let _ = key.set_value("EnableClipboardHistory", &value);
         let _ = key.set_value("EnableCloudClipboard", &value);
     }
-    
-    if let Ok((adv_key, _)) = hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced") {
+
+    if let Ok((adv_key, _)) =
+        hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced")
+    {
         let current_disabled: String = adv_key.get_value("DisabledHotkeys").unwrap_or_default();
         if current_disabled.to_uppercase().contains('V') {
             let new_val = current_disabled.to_uppercase().replace('V', "");
-            if new_val.is_empty() { let _ = adv_key.delete_value("DisabledHotkeys"); }
-            else { let _ = adv_key.set_value("DisabledHotkeys", &new_val); }
+            if new_val.is_empty() {
+                let _ = adv_key.delete_value("DisabledHotkeys");
+            } else {
+                let _ = adv_key.set_value("DisabledHotkeys", &new_val);
+            }
             needs_restart = true;
         }
     }
 
-    if let Ok((policy_key, _)) = hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer") {
-        if policy_key.get_value::<u32, _>("DisallowClipboardHistory").unwrap_or(0) != 0 {
+    if let Ok((policy_key, _)) =
+        hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer")
+    {
+        if policy_key
+            .get_value::<u32, _>("DisallowClipboardHistory")
+            .unwrap_or(0)
+            != 0
+        {
             let _ = policy_key.delete_value("DisallowClipboardHistory");
             needs_restart = true;
         }
@@ -118,19 +138,31 @@ pub fn set_windows_clipboard_history(enabled: bool) -> AppResult<()> {
     // Policy-based clipboard lock can also exist under Software\Policies\Microsoft\Windows\System.
     // Clear blocking values when restoring system Win+V behavior.
     if enabled {
-        if let Ok((sys_policy, _)) = hkcu.create_subkey("Software\\Policies\\Microsoft\\Windows\\System") {
-            if sys_policy.get_value::<u32, _>("AllowClipboardHistory").unwrap_or(1) == 0 {
+        if let Ok((sys_policy, _)) =
+            hkcu.create_subkey("Software\\Policies\\Microsoft\\Windows\\System")
+        {
+            if sys_policy
+                .get_value::<u32, _>("AllowClipboardHistory")
+                .unwrap_or(1)
+                == 0
+            {
                 let _ = sys_policy.delete_value("AllowClipboardHistory");
                 needs_restart = true;
             }
-            if sys_policy.get_value::<u32, _>("AllowCrossDeviceClipboard").unwrap_or(1) == 0 {
+            if sys_policy
+                .get_value::<u32, _>("AllowCrossDeviceClipboard")
+                .unwrap_or(1)
+                == 0
+            {
                 let _ = sys_policy.delete_value("AllowCrossDeviceClipboard");
                 needs_restart = true;
             }
         }
     }
-    
-    if needs_restart { restart_explorer().ok(); }
+
+    if needs_restart {
+        restart_explorer().ok();
+    }
     Ok(())
 }
 
@@ -139,13 +171,23 @@ pub fn get_windows_clipboard_history() -> AppResult<bool> {
     use winreg::enums::*;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    
-    let v_disabled = match hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced") {
-        Ok(key) => key.get_value::<String, _>("DisabledHotkeys").unwrap_or_default().to_uppercase().contains('V'),
+
+    let v_disabled = match hkcu
+        .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced")
+    {
+        Ok(key) => key
+            .get_value::<String, _>("DisabledHotkeys")
+            .unwrap_or_default()
+            .to_uppercase()
+            .contains('V'),
         Err(_) => false,
     };
     let history_enabled = match hkcu.open_subkey("Software\\Microsoft\\Clipboard") {
-        Ok(key) => key.get_value::<u32, _>("EnableClipboardHistory").unwrap_or(1) != 0,
+        Ok(key) => {
+            key.get_value::<u32, _>("EnableClipboardHistory")
+                .unwrap_or(1)
+                != 0
+        }
         Err(_) => true,
     };
     Ok(history_enabled && !v_disabled)
@@ -163,15 +205,20 @@ pub fn trigger_registry_win_v_optimization(enable: bool) -> AppResult<bool> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let mut changed = false;
 
-    if let Ok((adv_key, _)) = hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced") {
+    if let Ok((adv_key, _)) =
+        hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced")
+    {
         let current: String = adv_key.get_value("DisabledHotkeys").unwrap_or_default();
         if enable && !current.to_uppercase().contains('V') {
             let _ = adv_key.set_value("DisabledHotkeys", &format!("{}V", current));
             changed = true;
         } else if !enable && current.to_uppercase().contains('V') {
             let clean = current.to_uppercase().replace('V', "");
-            if clean.is_empty() { let _ = adv_key.delete_value("DisabledHotkeys"); }
-            else { let _ = adv_key.set_value("DisabledHotkeys", &clean); }
+            if clean.is_empty() {
+                let _ = adv_key.delete_value("DisabledHotkeys");
+            } else {
+                let _ = adv_key.set_value("DisabledHotkeys", &clean);
+            }
             changed = true;
         }
     }
@@ -203,7 +250,8 @@ pub fn trigger_registry_win_v_optimization(enable: bool) -> AppResult<bool> {
             }
         }
 
-        if let Ok((sys_policy, _)) = hkcu.create_subkey("Software\\Policies\\Microsoft\\Windows\\System")
+        if let Ok((sys_policy, _)) =
+            hkcu.create_subkey("Software\\Policies\\Microsoft\\Windows\\System")
         {
             if sys_policy
                 .get_value::<u32, _>("AllowClipboardHistory")
@@ -235,17 +283,26 @@ pub fn get_registry_win_v_optimized_status() -> bool {
     use winreg::enums::*;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    if let Ok(key) = hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced") {
-        return key.get_value::<String, _>("DisabledHotkeys").unwrap_or_default().to_uppercase().contains('V');
+    if let Ok(key) =
+        hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced")
+    {
+        return key
+            .get_value::<String, _>("DisabledHotkeys")
+            .unwrap_or_default()
+            .to_uppercase()
+            .contains('V');
     }
     false
 }
 
 #[tauri::command]
 pub fn restart_explorer() -> AppResult<()> {
-    use std::process::Command;
     use std::os::windows::process::CommandExt;
-    let _ = Command::new("cmd").args(["/C", "taskkill /F /IM explorer.exe & start explorer.exe"]).creation_flags(0x08000000).spawn();
+    use std::process::Command;
+    let _ = Command::new("cmd")
+        .args(["/C", "taskkill /F /IM explorer.exe & start explorer.exe"])
+        .creation_flags(0x08000000)
+        .spawn();
     Ok(())
 }
 
@@ -257,7 +314,9 @@ pub fn quit(app: AppHandle) {
 #[tauri::command]
 pub fn relaunch(app: AppHandle) {
     use std::process::Command;
-    if let Ok(exe) = std::env::current_exe() { let _ = Command::new(exe).spawn(); }
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = Command::new(exe).spawn();
+    }
     app.exit(0);
 }
 
@@ -312,10 +371,12 @@ pub fn restart_as_admin(app_handle: AppHandle) -> AppResult<()> {
 
 #[tauri::command]
 pub fn check_is_admin() -> bool {
-    use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
-    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
-    use windows::Win32::Foundation::HANDLE;
     use std::ffi::c_void;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::Security::{
+        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+    };
+    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
     unsafe {
         let mut token_handle = HANDLE::default();
@@ -329,9 +390,9 @@ pub fn check_is_admin() -> bool {
                 std::mem::size_of::<TOKEN_ELEVATION>() as u32,
                 &mut return_length,
             );
-            
+
             let _ = windows::Win32::Foundation::CloseHandle(token_handle);
-            
+
             if success.is_ok() {
                 return elevation.TokenIsElevated != 0;
             }
@@ -359,7 +420,10 @@ pub fn set_data_path(app_handle: AppHandle, new_path: String) -> AppResult<()> {
             if old_folder.exists() && old_folder.is_dir() {
                 if let Err(_) = std::fs::rename(&old_folder, &new_folder) {
                     if let Err(copy_err) = copy_dir_recursive(&old_folder, &new_folder) {
-                        return Err(AppError::Internal(format!("Failed to copy {}: {}", folder, copy_err)));
+                        return Err(AppError::Internal(format!(
+                            "Failed to copy {}: {}",
+                            folder, copy_err
+                        )));
                     } else {
                         let _ = std::fs::remove_dir_all(&old_folder);
                     }
@@ -385,7 +449,10 @@ pub fn set_data_path(app_handle: AppHandle, new_path: String) -> AppResult<()> {
             }
             if let Err(_) = std::fs::rename(&old_db, &new_db) {
                 if let Err(copy_err) = std::fs::copy(&old_db, &new_db) {
-                    return Err(AppError::Internal(format!("Failed to copy {}: {}", name, copy_err)));
+                    return Err(AppError::Internal(format!(
+                        "Failed to copy {}: {}",
+                        name, copy_err
+                    )));
                 } else {
                     let _ = std::fs::remove_file(&old_db);
                 }
@@ -398,6 +465,7 @@ pub fn set_data_path(app_handle: AppHandle, new_path: String) -> AppResult<()> {
     if new_db_path.exists() {
         rewrite_attachment_paths_in_db(&new_db_path, &old_path_buf, new_data_path)?;
         rewrite_emoji_favorites_in_db(&new_db_path, &old_path_buf, new_data_path)?;
+        rewrite_custom_background_in_db(&new_db_path, &old_path_buf, new_data_path)?;
     }
 
     // 2. Save new path to a persistent config file
@@ -459,9 +527,13 @@ fn rewrite_attachment_paths_in_db(
         }
 
         if let Some(html) = html_raw.as_ref() {
-            if let Some(updated) =
-                rewrite_html_paths(html, &old_prefix, &new_prefix, &old_prefix_slash, &new_prefix_slash)
-            {
+            if let Some(updated) = rewrite_html_paths(
+                html,
+                &old_prefix,
+                &new_prefix,
+                &old_prefix_slash,
+                &new_prefix_slash,
+            ) {
                 html_new = Some(updated);
             }
         }
@@ -509,7 +581,9 @@ fn rewrite_emoji_favorites_in_db(
         .optional()
         .map_err(AppError::from)?;
 
-    let Some(raw) = value else { return Ok(()); };
+    let Some(raw) = value else {
+        return Ok(());
+    };
     let parsed: Vec<String> = match serde_json::from_str(&raw) {
         Ok(v) => v,
         Err(_) => return Ok(()),
@@ -524,7 +598,9 @@ fn rewrite_emoji_favorites_in_db(
         } else if next.starts_with(&old_prefix_slash) {
             next = format!("{}{}", new_prefix_slash, &next[old_prefix_slash.len()..]);
         }
-        if next != path { changed = true; }
+        if next != path {
+            changed = true;
+        }
         updated.push(next);
     }
 
@@ -533,6 +609,63 @@ fn rewrite_emoji_favorites_in_db(
         conn.execute(
             "UPDATE settings SET value = ?1 WHERE key = 'app.emoji_favorites'",
             params![serialized],
+        )
+        .map_err(AppError::from)?;
+    }
+
+    Ok(())
+}
+
+fn rewrite_custom_background_in_db(
+    db_path: &std::path::Path,
+    old_base: &std::path::Path,
+    new_base: &std::path::Path,
+) -> AppResult<()> {
+    let conn = Connection::open(db_path).map_err(AppError::from)?;
+    let value: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'app.custom_background'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(AppError::from)?;
+
+    let Some(raw_path) = value else {
+        return Ok(());
+    };
+    let trimmed = raw_path.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+
+    let old_path = std::path::PathBuf::from(trimmed);
+    if !old_path.starts_with(old_base) {
+        return Ok(());
+    }
+
+    let Ok(relative) = old_path.strip_prefix(old_base) else {
+        return Ok(());
+    };
+    let new_path = new_base.join(relative);
+
+    if old_path != new_path && old_path.exists() {
+        if let Some(parent) = new_path.parent() {
+            std::fs::create_dir_all(parent).map_err(AppError::from)?;
+        }
+        if !new_path.exists() {
+            if let Err(_) = std::fs::rename(&old_path, &new_path) {
+                std::fs::copy(&old_path, &new_path).map_err(AppError::from)?;
+                let _ = std::fs::remove_file(&old_path);
+            }
+        }
+    }
+
+    let new_value = new_path.to_string_lossy().to_string();
+    if new_value != raw_path {
+        conn.execute(
+            "UPDATE settings SET value = ?1 WHERE key = 'app.custom_background'",
+            params![new_value],
         )
         .map_err(AppError::from)?;
     }
@@ -552,7 +685,11 @@ fn rewrite_content_path(
             return Some(format!("{}{}", new_prefix, &v[old_prefix.len()..]));
         }
         if v.starts_with(old_prefix_slash) {
-            return Some(format!("{}{}", new_prefix_slash, &v[old_prefix_slash.len()..]));
+            return Some(format!(
+                "{}{}",
+                new_prefix_slash,
+                &v[old_prefix_slash.len()..]
+            ));
         }
         None
     };
@@ -584,7 +721,11 @@ fn rewrite_html_paths(
     let replace_any = |v: &str| -> Option<String> {
         let mut updated = v.replace(old_prefix, new_prefix);
         updated = updated.replace(old_prefix_slash, new_prefix_slash);
-        if updated == v { None } else { Some(updated) }
+        if updated == v {
+            None
+        } else {
+            Some(updated)
+        }
     };
 
     if value.starts_with(ENCRYPT_PREFIX) {
