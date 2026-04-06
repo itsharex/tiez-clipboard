@@ -27,10 +27,10 @@ Explore 4 elegant themes designed for every workspace and efficiency scenarios.
 
   <table>
     <tr>
-      <td align="center"><b>Frosted Glass</b><br><img src="docs/images/毛玻璃.png" width="220" height="150" /></td>
-      <td align="center"><b>Notebook Style</b><br><img src="docs/images/书.png" width="220" height="150" /></td>
-      <td align="center"><b>Sticky Note</b><br><img src="docs/images/便利贴.png" width="220" height="150" /></td>
-      <td align="center"><b>3D Interaction</b><br><img src="docs/images/3d.png" width="220" height="150" /></td>
+      <td align="center"><b>Frosted Glass</b><br><img src="docs/images/毛玻璃.png" width="220" /></td>
+      <td align="center"><b>Notebook Style</b><br><img src="docs/images/书.png" width="220" /></td>
+      <td align="center"><b>Sticky Note</b><br><img src="docs/images/便利贴.png" width="220" /></td>
+      <td align="center"><b>3D Interaction</b><br><img src="docs/images/3d.png" width="220" /></td>
     </tr>
   </table>
 </div>

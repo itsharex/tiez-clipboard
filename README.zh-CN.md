@@ -27,10 +27,10 @@
 
   <table>
     <tr>
-      <td align="center"><b>极简毛玻璃</b><br><img src="docs/images/毛玻璃.png" width="220" height="150" /></td>
-      <td align="center"><b>笔记本风格</b><br><img src="docs/images/书.png" width="220" height="150" /></td>
-      <td align="center"><b>便利贴风格</b><br><img src="docs/images/便利贴.png" width="220" height="150" /></td>
-      <td align="center"><b>3D 动感</b><br><img src="docs/images/3d.png" width="220" height="150" /></td>
+      <td align="center"><b>极简毛玻璃</b><br><img src="docs/images/毛玻璃.png" width="220" /></td>
+      <td align="center"><b>笔记本风格</b><br><img src="docs/images/书.png" width="220" /></td>
+      <td align="center"><b>便利贴风格</b><br><img src="docs/images/便利贴.png" width="220" /></td>
+      <td align="center"><b>3D 动感</b><br><img src="docs/images/3d.png" width="220" /></td>
     </tr>
   </table>
 </div>
