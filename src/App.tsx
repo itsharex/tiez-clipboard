@@ -192,17 +192,14 @@ const App = () => {
     setPrivacyProtection,
     setPrivacyProtectionKinds,
     setPrivacyProtectionCustomRules,
-<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     setSensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     setSensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
     setSensitiveMaskEmailDomain,
-=======
     setCleanupRules,
     setAppCleanupPolicies,
->>>>>>> master
     captureFiles,
     setCaptureFiles,
     captureRichText,
@@ -562,14 +559,11 @@ const App = () => {
     setPrivacyProtection,
     setPrivacyProtectionKinds,
     setPrivacyProtectionCustomRules,
-<<<<<<< HEAD
     setSensitiveMaskPrefixVisible,
     setSensitiveMaskSuffixVisible,
     setSensitiveMaskEmailDomain,
-=======
     setCleanupRules,
     setAppCleanupPolicies,
->>>>>>> master
     setSilentStart,
     setFollowMouse,
     setShowAppBorder,
@@ -939,13 +933,10 @@ const App = () => {
     compactMode,
     showSourceAppIcon,
     richTextSnapshotPreview,
-<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
-=======
     quickPasteHintsById,
->>>>>>> master
     processingAiId,
     aiEnabled,
     aiOptionsOpenId,

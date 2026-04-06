@@ -65,14 +65,11 @@ export const useAppState = (): AppState => {
     "secret"
   ]);
   const [privacyProtectionCustomRules, setPrivacyProtectionCustomRules] = useState<string>("");
-<<<<<<< HEAD
   const [sensitiveMaskPrefixVisible, setSensitiveMaskPrefixVisible] = useState(3);
   const [sensitiveMaskSuffixVisible, setSensitiveMaskSuffixVisible] = useState(3);
   const [sensitiveMaskEmailDomain, setSensitiveMaskEmailDomain] = useState(false);
-=======
   const [cleanupRules, setCleanupRules] = useState<string>("");
   const [appCleanupPolicies, setAppCleanupPolicies] = useState<AppCleanupPolicy[]>([]);
->>>>>>> master
   const [captureFiles, setCaptureFiles] = useState(true);
   const [captureRichText, setCaptureRichText] = useState(false);
   const [richTextSnapshotPreview, setRichTextSnapshotPreview] = useState(false);
@@ -257,19 +254,16 @@ export const useAppState = (): AppState => {
     setPrivacyProtectionKinds,
     privacyProtectionCustomRules,
     setPrivacyProtectionCustomRules,
-<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     setSensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     setSensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
     setSensitiveMaskEmailDomain,
-=======
     cleanupRules,
     setCleanupRules,
     appCleanupPolicies,
     setAppCleanupPolicies,
->>>>>>> master
     captureFiles,
     setCaptureFiles,
     captureRichText,

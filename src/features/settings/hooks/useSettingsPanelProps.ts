@@ -75,19 +75,16 @@ export const useSettingsPanelProps = ({
     setPrivacyProtectionKinds,
     privacyProtectionCustomRules,
     setPrivacyProtectionCustomRules,
-<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     setSensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     setSensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
     setSensitiveMaskEmailDomain,
-=======
     cleanupRules,
     setCleanupRules,
     appCleanupPolicies,
     setAppCleanupPolicies,
->>>>>>> master
     hotkey,
     showHotkeyHint,
     winClipboardDisabled,
@@ -269,19 +266,16 @@ export const useSettingsPanelProps = ({
     setPrivacyProtectionKinds,
     privacyProtectionCustomRules,
     setPrivacyProtectionCustomRules,
-<<<<<<< HEAD
     sensitiveMaskPrefixVisible,
     setSensitiveMaskPrefixVisible,
     sensitiveMaskSuffixVisible,
     setSensitiveMaskSuffixVisible,
     sensitiveMaskEmailDomain,
     setSensitiveMaskEmailDomain,
-=======
     cleanupRules,
     setCleanupRules,
     appCleanupPolicies,
     setAppCleanupPolicies,
->>>>>>> master
     hotkey,
     showHotkeyHint,
     winClipboardDisabled,

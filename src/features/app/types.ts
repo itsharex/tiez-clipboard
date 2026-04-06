@@ -94,19 +94,16 @@ export interface AppState {
   setPrivacyProtectionKinds: StateSetter<string[]>;
   privacyProtectionCustomRules: string;
   setPrivacyProtectionCustomRules: StateSetter<string>;
-<<<<<<< HEAD
   sensitiveMaskPrefixVisible: number;
   setSensitiveMaskPrefixVisible: StateSetter<number>;
   sensitiveMaskSuffixVisible: number;
   setSensitiveMaskSuffixVisible: StateSetter<number>;
   sensitiveMaskEmailDomain: boolean;
   setSensitiveMaskEmailDomain: StateSetter<boolean>;
-=======
   cleanupRules: string;
   setCleanupRules: StateSetter<string>;
   appCleanupPolicies: AppCleanupPolicy[];
   setAppCleanupPolicies: StateSetter<AppCleanupPolicy[]>;
->>>>>>> master
   captureFiles: boolean;
   setCaptureFiles: StateSetter<boolean>;
   captureRichText: boolean;
