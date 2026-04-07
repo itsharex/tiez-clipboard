@@ -160,9 +160,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwMjAxQ0ZFRTUwNDk5QjEKUldTeG1RVGwvaHdnUUthT2dXbHpOWG8xdm1ObStjaHVJMkg5aitZMDgvUnI4L2dLQUFwQUJtQjAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY5QjdEQTdCMjgxMEVEMkMKUldRczdSQW9lOXEzYWNDQm1DR3Y3Y2NlZjhFZ2hjRzcyejRuZ25rYUVJZm1sQ1FQM1hIWXdIMkQK",
       "endpoints": [
-        "[[TIEZ_UPDATE_ENDPOINT]]"
+        "https://tiez.name666.top/api/v1/latest-version?version={{current_version}}"
       ]
     }
   }

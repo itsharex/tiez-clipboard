@@ -27,10 +27,29 @@ const SettingsFooter = ({
 
     const handleInstallUpdate = async () => {
         if (!pendingUpdate) return;
-        setUpdateStatus(t('downloading'));
-        setPendingUpdate(null);
+        setUpdateStatus(`${t('downloading')} (0%)`);
+        
+        let downloaded = 0;
+        let total = 0;
+
         try {
-            await pendingUpdate.downloadAndInstall();
+            await pendingUpdate.downloadAndInstall((event) => {
+                switch (event.event) {
+                    case 'Started':
+                        total = event.data.contentLength || 0;
+                        break;
+                    case 'Progress':
+                        downloaded += event.data.chunkLength;
+                        if (total > 0) {
+                            const percent = Math.round((downloaded / total) * 100);
+                            setUpdateStatus(`${t('downloading')} (${percent}%)`);
+                        }
+                        break;
+                    case 'Finished':
+                        setUpdateStatus(t('relaunching') || '正在重启...');
+                        break;
+                }
+            });
             await relaunch();
         } catch (err) {
             console.error('Update failed:', err);
@@ -106,23 +125,57 @@ const SettingsFooter = ({
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        {/* Progress Bar in the Middle */}
+                        {updateStatus.includes('%') && (
+                            <div style={{ marginTop: '16px', marginBottom: '8px' }}>
+                                <div style={{ 
+                                    height: '8px', 
+                                    background: 'var(--bg-element)', 
+                                    borderRadius: '4px', 
+                                    overflow: 'hidden',
+                                    border: '1px solid var(--line-soft)',
+                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
+                                }}>
+                                    <div style={{ 
+                                        width: `${updateStatus.split('(')[1].split('%')[0]}%`,
+                                        height: '100%',
+                                        background: 'linear-gradient(90deg, var(--accent-color) 0%, var(--accent-hover) 100%)',
+                                        transition: 'width 0.3s ease-out'
+                                    }} />
+                                </div>
+                                <div style={{ 
+                                    textAlign: 'center', 
+                                    fontSize: '11px', 
+                                    marginTop: '6px', 
+                                    color: 'var(--accent-color)',
+                                    fontWeight: 700,
+                                    letterSpacing: '1px'
+                                }}>
+                                    {updateStatus.split('(')[1].split(')')[0]}
+                                </div>
+                                <div style={{ 
+                                    textAlign: 'center', 
+                                    fontSize: '10px', 
+                                    color: 'var(--text-muted)',
+                                    marginTop: '2px'
+                                }}>
+                                    正在同步 0.3.4 核心资源...
+                                </div>
+                            </div>
+                        )}
+
+                        <div style={{ 
+                            display: 'flex', 
+                            gap: '10px', 
+                            marginTop: updateStatus.includes('%') ? '0' : '0',
+                            maxHeight: updateStatus.includes('%') ? '0' : '100px',
+                            opacity: updateStatus.includes('%') ? 0 : 1,
+                            pointerEvents: updateStatus.includes('%') ? 'none' : 'auto',
+                            overflow: 'hidden',
+                            transition: 'all 0.3s ease'
+                        }}>
                             <button
-                                className="settings-nav-card"
-                                style={{
-                                    flex: 1,
-                                    padding: '10px',
-                                    justifyContent: 'center',
-                                    margin: 0,
-                                    fontSize: '13px',
-                                    fontWeight: 600
-                                }}
-                                onClick={() => setPendingUpdate(null)}
-                            >
-                                {t('later') || '稍后再说'}
-                            </button>
-                            <button
-                                className="settings-nav-card"
+                                className="update-modal-cancel-btn"
                                 style={{
                                     flex: 1,
                                     padding: '10px',
@@ -130,8 +183,22 @@ const SettingsFooter = ({
                                     margin: 0,
                                     fontSize: '13px',
                                     fontWeight: 600,
-                                    color: '#fff',
-                                    backgroundColor: 'var(--accent-color)'
+                                    borderRadius: '12px'
+                                }}
+                                onClick={() => setPendingUpdate(null)}
+                            >
+                                {t('later') || '稍后再说'}
+                            </button>
+                            <button
+                                className="update-install-btn"
+                                style={{
+                                    flex: 1,
+                                    padding: '10px',
+                                    justifyContent: 'center',
+                                    margin: 0,
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    borderRadius: '12px'
                                 }}
                                 onClick={handleInstallUpdate}
                             >
@@ -255,7 +322,7 @@ const SettingsFooter = ({
                         onMouseEnter={(e) => !updateStatus && (e.currentTarget.style.opacity = '1')}
                         onMouseLeave={(e) => !updateStatus && (e.currentTarget.style.opacity = '0.8')}
                     >
-                        {updateStatus || t('check_update')}
+                        {(updateStatus && !updateStatus.includes('%')) ? updateStatus : t('check_update')}
                     </button>
                 </div>
                 <div style={{

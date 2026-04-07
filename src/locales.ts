@@ -285,7 +285,7 @@ export const translations = {
         checking: "检查中...",
         up_to_date: "已是最新版本",
         checking_failed: "检查失败",
-        downloading: "由于资源较大，正在后台静默下载，下载完成后将自动安装并重启...",
+        downloading: "正在下载...",
         download_failed: "下载失败",
         download_failed_with_error: "下载失败: {e}",
         new_version_found: "发现新版本",

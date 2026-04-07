@@ -680,7 +680,7 @@ const ClipboardSettingsGroup = (props: ClipboardSettingsGroupProps) => {
                     </div>
 
                     <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div className="settings-subsection-trigger">
                             <button
                                 type="button"
                                 className="btn-icon"
@@ -689,12 +689,12 @@ const ClipboardSettingsGroup = (props: ClipboardSettingsGroupProps) => {
                             >
                                 {maskSettingsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                             </button>
-                            <span className="item-label">{props.t('sensitive_mask_settings')}</span>
+                            <span className="settings-subsection-title">{props.t('sensitive_mask_settings')}</span>
                         </div>
                         {maskSettingsOpen && (
                             <div style={{ width: 'calc(100% - 30px)', marginLeft: '30px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div className="setting-item" style={{ padding: 0, borderBottom: 'none' }}>
-                                    <span className="item-label">{props.t('sensitive_mask_prefix_visible')}</span>
+                                    <span className="settings-subsection-title">{props.t('sensitive_mask_prefix_visible')}</span>
                                     <input
                                         type="number"
                                         className="search-input"
@@ -710,7 +710,7 @@ const ClipboardSettingsGroup = (props: ClipboardSettingsGroupProps) => {
                                     />
                                 </div>
                                 <div className="setting-item" style={{ padding: 0, borderBottom: 'none' }}>
-                                    <span className="item-label">{props.t('sensitive_mask_suffix_visible')}</span>
+                                    <span className="settings-subsection-title">{props.t('sensitive_mask_suffix_visible')}</span>
                                     <input
                                         type="number"
                                         className="search-input"
@@ -726,11 +726,13 @@ const ClipboardSettingsGroup = (props: ClipboardSettingsGroupProps) => {
                                     />
                                 </div>
                                 <div className="setting-item" style={{ padding: 0, borderBottom: 'none' }}>
-                                    <props.LabelWithHint
-                                        label={props.t('sensitive_mask_email_domain')}
-                                        hint={props.t('sensitive_mask_email_domain_hint')}
-                                        hintKey="sensitive_mask_email_domain"
-                                    />
+                                    <div className="settings-subsection-label">
+                                        <props.LabelWithHint
+                                            label={props.t('sensitive_mask_email_domain')}
+                                            hint={props.t('sensitive_mask_email_domain_hint')}
+                                            hintKey="sensitive_mask_email_domain"
+                                        />
+                                    </div>
                                     <label className="switch">
                                         <input
                                             type="checkbox"
